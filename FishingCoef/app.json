@@ -22,7 +22,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/favicon.png",
       "themeColor": "#0A1628",
       "backgroundColor": "#0A1628",
@@ -30,8 +30,7 @@
       "shortName": "FishingCoef",
       "description": "Coefficient de pêche — Théorie solunar & marées"
     },
-    "experiments": {
-      "baseUrl": "/Appli"
-    }
+    "experiments": {}
+
   }
 }

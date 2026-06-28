@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FishingCoef">
+<meta name="theme-color" content="#0A1628">
+<title>FishingCoef 🎣</title>
+
+<style>
+:root {
+  --bg:        #0A1628;
+  --card:      #132038;
+  --card2:     #1A2C47;
+  --border:    #1E3050;
+  --primary:   #1E90FF;
+  --cyan:      #00D4E8;
+  --text:      #FFFFFF;
+  --text2:     #90A4AE;
+  --muted:     #546E7A;
+  --green:     #00E676;
+  --lime:      #69F0AE;
+  --yellow:    #FFD740;
+  --orange:    #FF9800;
+  --red:       #F44336;
+  --gold:      #FFD700;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{
+  height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  overflow:hidden;display:flex;flex-direction:column;
+}
+#app{display:flex;flex-direction:column;height:100%}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+#header{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:12px 16px env(safe-area-inset-top,0) 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+#loc{font-size:15px;font-weight:700}
+#loc-sub{font-size:11px;color:var(--text2);margin-top:2px;text-transform:capitalize}
+#clock{font-size:22px;font-weight:800;color:var(--cyan);font-variant-numeric:tabular-nums}
+
+/* ── Tab content ─────────────────────────────────────────────────────────── */
+#content{flex:1;overflow:hidden;position:relative}
+.tab{
+  position:absolute;inset:0;overflow-y:auto;
+  padding:14px 14px calc(14px + env(safe-area-inset-bottom,0));
+  display:none;flex-direction:column;gap:10px;
+}
+.tab.active{display:flex}
+
+/* ── Bottom tab bar ──────────────────────────────────────────────────────── */
+#tabbar{
+  background:var(--card);border-top:1px solid var(--border);
+  padding-bottom:env(safe-area-inset-bottom,8px);
+  display:flex;flex-shrink:0;
+}
+.tb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:2px;background:none;border:none;cursor:pointer;
+  position:relative;
+}
+.tb-icon{font-size:20px;opacity:.45;transition:opacity .2s}
+.tb-label{font-size:10px;color:var(--muted);font-weight:500;transition:color .2s}
+.tb.active .tb-icon{opacity:1}
+.tb.active .tb-label{color:var(--cyan);font-weight:700}
+.tb.active::before{
+  content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:32px;height:2px;background:var(--cyan);border-radius:1px;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--card);border-radius:16px;padding:14px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:10px}
+.card-sub{font-size:10px;color:var(--muted)}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.divider{height:1px;background:var(--border);margin:12px 0}
+.info-box{background:var(--card2);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.6}
+
+/* ── Gauge (SVG) ─────────────────────────────────────────────────────────── */
+#gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:16px 0 8px}
+#gauge-svg{width:200px;height:200px}
+#gauge-score{fill:var(--text);font-size:52px;font-weight:800;text-anchor:middle;dominant-baseline:middle}
+#gauge-unit{fill:var(--text2);font-size:14px;text-anchor:middle}
+#gauge-rating{fill:var(--cyan);font-size:13px;font-weight:700;text-anchor:middle;text-transform:uppercase;letter-spacing:1px}
+#gauge-subtitle{font-size:11px;color:var(--muted);text-align:center;margin-top:4px}
+
+/* ── Stats row ───────────────────────────────────────────────────────────── */
+.stats-row{display:flex;gap:8px}
+.stat{
+  flex:1;background:var(--card);border-radius:12px;
+  padding:10px 8px;text-align:center;
+}
+.stat-icon{font-size:18px}
+.stat-val{font-size:15px;font-weight:700;margin:2px 0}
+.stat-lab{font-size:10px;color:var(--muted)}
+
+/* ── Activity chart ──────────────────────────────────────────────────────── */
+#chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#chart-inner{display:flex;align-items:flex-end;height:90px;padding-bottom:18px;gap:2px;min-width:max-content}
+.bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:18px;position:relative}
+.bar{width:14px;border-radius:3px;min-height:4px;transition:height .3s}
+.bar-cursor{position:absolute;bottom:-4px;width:2px;height:94px;background:var(--orange);opacity:.9;border-radius:1px}
+.bar-label{font-size:9px;color:var(--muted);position:absolute;bottom:0}
+.bar-label.now{color:var(--orange)}
+.chart-legend{display:flex;gap:14px;margin-top:8px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* ── Solunar ─────────────────────────────────────────────────────────────── */
+.period-row{
+  display:flex;align-items:center;gap:10px;
+  background:var(--card2);border-radius:10px;padding:10px;
+  margin-bottom:6px;border:1px solid transparent;
+}
+.period-row.active-period{border-color:var(--cyan);background:#0D2A3E}
+.badge{padding:4px 8px;border-radius:6px;font-size:9px;font-weight:800;letter-spacing:.4px;min-width:68px;text-align:center}
+.badge.major{background:#00D4E820;border:1px solid var(--cyan);color:var(--text)}
+.badge.minor{background:#1E90FF20;border:1px solid var(--primary);color:var(--text)}
+.period-info{flex:1}
+.period-time{font-size:13px;font-weight:600}
+.period-time.active-period{color:var(--cyan)}
+.period-desc{font-size:11px;color:var(--muted);margin-top:2px}
+.active-dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
+
+/* ── Moon card ───────────────────────────────────────────────────────────── */
+.moon-row{display:flex;align-items:center;gap:14px}
+.moon-emoji{font-size:52px;line-height:1}
+.moon-info{flex:1}
+.moon-phase-name{font-size:15px;font-weight:600}
+.moon-illum-label{font-size:12px;color:var(--text2);margin-top:3px}
+.illum-bar{height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-top:5px}
+.illum-fill{height:6px;background:var(--gold);border-radius:3px;transition:width .8s}
+.times-row{display:flex;justify-content:space-around}
+.time-item{text-align:center}
+.time-icon{font-size:18px}
+.time-val{font-size:14px;font-weight:700;display:block;margin-top:3px}
+.time-lab{font-size:10px;color:var(--muted)}
+
+/* ── Tide card ───────────────────────────────────────────────────────────── */
+.tide-main{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+.tide-coef{font-size:48px;font-weight:800}
+.tide-labels{flex:1}
+.tide-badge{display:inline-block;border:1px solid;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700}
+.tide-label{font-size:12px;color:var(--text2);margin-top:4px}
+.coef-bar{margin:10px 0 4px}
+.coef-track{height:10px;background:var(--card2);border-radius:5px;position:relative;overflow:visible}
+.coef-fill{height:10px;border-radius:5px;transition:width .8s}
+.coef-cursor{position:absolute;top:-4px;width:3px;height:18px;background:var(--text);border-radius:2px;transform:translateX(-50%);transition:left .8s}
+.coef-scale{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px}
+.coef-zones{display:flex;justify-content:space-between;font-size:9px;color:var(--muted)}
+
+/* ── Week calendar ───────────────────────────────────────────────────────── */
+#week-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:8px}
+#week-inner{display:flex;gap:8px;min-width:max-content;padding-bottom:2px}
+.day-chip{
+  width:60px;background:var(--card2);border-radius:12px;padding:10px 0;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  border:1.5px solid transparent;
+}
+.day-chip.today{border-color:var(--cyan);background:#0D2A3E}
+.day-name{font-size:11px;font-weight:600;color:var(--text2)}
+.day-chip.today .day-name{color:var(--cyan)}
+.day-num{font-size:18px;font-weight:700}
+.day-moon{font-size:18px}
+.day-bar-wrap{width:6px;height:44px;background:var(--card);border-radius:3px;overflow:hidden;display:flex;align-items:flex-end}
+.day-bar{width:6px;border-radius:3px;transition:height .6s}
+.day-score{font-size:12px;font-weight:700}
+
+/* ── Detail list ─────────────────────────────────────────────────────────── */
+.detail-row{
+  background:var(--card);border-radius:12px;padding:12px 14px;
+  display:flex;align-items:center;gap:10px;margin-bottom:7px;
+  border:1.5px solid transparent;
+}
+.detail-row.today{border-color:var(--cyan)}
+.detail-left{width:90px}
+.detail-dayname{font-size:13px;font-weight:600}
+.detail-row.today .detail-dayname{color:var(--cyan)}
+.detail-date{font-size:11px;color:var(--text2);margin-top:2px}
+.detail-center{flex:1}
+.detail-phase{font-size:11px;color:var(--text2)}
+.detail-tide{font-size:10px;color:var(--muted);margin-top:2px}
+.detail-right{text-align:right}
+.detail-score{font-size:22px;font-weight:800}
+.detail-rating{font-size:10px;font-weight:600;margin-top:1px}
+
+/* ── Info screen ─────────────────────────────────────────────────────────── */
+.info-section{margin-bottom:20px}
+.info-section-title{font-size:16px;font-weight:700;margin-bottom:10px}
+.info-body{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:8px}
+.phase-grid{display:flex;flex-wrap:wrap;gap:7px}
+.phase-item{
+  width:calc(25% - 6px);background:var(--card);border-radius:10px;
+  padding:8px;text-align:center;
+}
+.phase-item-emoji{font-size:20px}
+.phase-item-name{font-size:9px;color:var(--text2);margin-top:2px}
+.phase-item-stars{font-size:9px;color:var(--orange)}
+.version-footer{text-align:center;color:var(--muted);font-size:11px;padding:16px 0;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div>
+    <div id="loc">📍 Chargement…</div>
+    <div id="loc-sub">Localisation en cours</div>
+  </div>
+  <div id="clock">--:--</div>
+</div>
+
+<!-- ── Main content ────────────────────────────────────────────────────── -->
+<div id="content">
+
+  <!-- ── Home tab ─────────────────────────────────────────────────────── -->
+  <div id="tab-home" class="tab active">
+    <!-- Gauge -->
+    <div id="gauge-wrap">
+      <svg id="gauge-svg" viewBox="0 0 200 200">
+        <circle id="gauge-track" cx="100" cy="100" r="80" fill="none" stroke="#1A2C47" stroke-width="14" stroke-linecap="round"
+          stroke-dasharray="419 503" stroke-dashoffset="-42" transform="rotate(90 100 100)"/>
+        <circle id="gauge-fill" cx="100" cy="100" r="80" fill="none" stroke="#00E676" stroke-width="14" stroke-linecap="round"
+          stroke-dasharray="0 503" stroke-dashoffset="-42" transform="rotate(90 100 100)" style="transition:stroke-dasharray 1.2s ease,stroke .4s"/>
+        <text id="gauge-score" x="100" y="93">--</text>
+        <text id="gauge-unit" x="100" y="114">/ 100</text>
+        <text id="gauge-rating" x="100" y="133">…</text>
+      </svg>
+      <div id="gauge-subtitle">Coefficient de pêche • Théorie solunar</div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="stats-row">
+      <div class="stat"><div class="stat-icon">🌙</div><div id="s-phase" class="stat-val">–</div><div class="stat-lab">Phase lune</div></div>
+      <div class="stat"><div class="stat-icon">💡</div><div id="s-illum" class="stat-val">–</div><div class="stat-lab">Illumination</div></div>
+      <div class="stat"><div class="stat-icon">🌊</div><div id="s-coef" class="stat-val">–</div><div class="stat-lab">Coef. marée</div></div>
+    </div>
+
+    <!-- Activity chart -->
+    <div class="card">
+      <div class="card-title">Activité du jour</div>
+      <div id="chart-scroll"><div id="chart-inner"></div></div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Période majeure</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--primary)"></div>Période mineure</div>
+      </div>
+    </div>
+
+    <!-- Solunar periods -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Périodes solunar</span>
+        <span class="card-sub">Théorie de Knight (1926)</span>
+      </div>
+      <div id="solunar-list"></div>
+      <div class="info-box">🎣 Les périodes majeures (transit lunaire) sont 2× plus efficaces que les mineures.</div>
+    </div>
+
+    <!-- Moon card -->
+    <div class="card">
+      <div class="card-title">Lune</div>
+      <div class="moon-row">
+        <div id="moon-emoji" class="moon-emoji">🌑</div>
+        <div class="moon-info">
+          <div id="moon-phase-name" class="moon-phase-name">–</div>
+          <div id="moon-illum-label" class="moon-illum-label">Illumination : –</div>
+          <div class="illum-bar"><div id="illum-fill" class="illum-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="times-row">
+        <div class="time-item"><div class="time-icon">🌅</div><span id="moon-rise" class="time-val">--:--</span><div class="time-lab">Lever</div></div>
+        <div class="time-item"><div class="time-icon">🌕</div><span id="moon-transit" class="time-val">--:--</span><div class="time-lab">Transit</div></div>
+        <div class="time-item"><div class="time-icon">🌇</div><span id="moon-set" class="time-val">--:--</span><div class="time-lab">Coucher</div></div>
+      </div>
+    </div>
+
+    <!-- Tide card -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Coefficient de marée</span>
+        <span class="card-sub" style="font-style:italic">Simulation SHOM</span>
+      </div>
+      <div class="tide-main">
+        <div id="tide-coef" class="tide-coef">–</div>
+        <div class="tide-labels">
+          <div id="tide-regime-badge" class="tide-badge">/120</div>
+          <div id="tide-label" class="tide-label">–</div>
+        </div>
+      </div>
+      <div class="coef-bar">
+        <div class="coef-track">
+          <div id="coef-fill" class="coef-fill" style="width:0%"></div>
+          <div id="coef-cursor" class="coef-cursor" style="left:0%"></div>
+        </div>
+        <div class="coef-scale"><span>20</span><span>45</span><span>70</span><span>95</span><span>120</span></div>
+        <div class="coef-zones"><span>Morte-eau</span><span>Interméd.</span><span>Vive-eau</span></div>
+      </div>
+      <div id="tide-info" class="info-box"></div>
+    </div>
+
+    <!-- ✨ Soleil & Heures d'or -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">☀️ Soleil & Heures d'or</span>
+        <span class="card-sub">Luminosité optimale</span>
+      </div>
+      <div class="times-row" style="margin-bottom:10px">
+        <div class="time-item"><div class="time-icon">🌅</div><span id="sun-rise" class="time-val">--:--</span><div class="time-lab">Lever</div></div>
+        <div class="time-item"><div class="time-icon">☀️</div><span id="sun-noon" class="time-val">--:--</span><div class="time-lab">Zénith</div></div>
+        <div class="time-item"><div class="time-icon">🌇</div><span id="sun-set" class="time-val">--:--</span><div class="time-lab">Coucher</div></div>
+      </div>
+      <div class="info-box">🥇 Les heures d'or <span id="golden-hours-text"></span> offrent une lumière rasante idéale — poissons très actifs en surface.</div>
+    </div>
+
+    <!-- ✨ Meilleur créneau du jour -->
+    <div class="card">
+      <div class="card-title">🏆 Top créneau aujourd'hui</div>
+      <div id="best-slot-content" style="font-size:13px;color:var(--text2);line-height:1.7">Calcul…</div>
+    </div>
+
+    <!-- ✨ Conseils par espèce -->
+    <div class="card">
+      <div class="card-title">🐟 Pêche par espèce</div>
+      <div id="species-tips" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+  </div><!-- /#tab-home -->
+
+  <!-- ── Calendar tab ──────────────────────────────────────────────────── -->
+  <div id="tab-calendar" class="tab">
+    <div id="cal-heading" class="card-title" style="font-size:20px;padding:4px 0"></div>
+
+    <div class="card" style="padding:14px 8px">
+      <div id="week-scroll"><div id="week-inner"></div></div>
+    </div>
+
+    <div class="card-title">Détail jour par jour</div>
+    <div id="detail-list"></div>
+
+    <div class="card" style="gap:8px;display:flex;flex-direction:column">
+      <div class="card-title">Coefficient de marée</div>
+      <div style="font-size:12px;color:var(--text2)">🟥 95–120 Grande vive-eau</div>
+      <div style="font-size:12px;color:var(--text2)">🟧 70–94  Vive-eau</div>
+      <div style="font-size:12px;color:var(--text2)">🟩 50–69  Intermédiaire</div>
+      <div style="font-size:12px;color:var(--text2)">🟦 20–49  Morte-eau</div>
+    </div>
+  </div>
+
+  <!-- ── Info tab ───────────────────────────────────────────────────────── -->
+  <div id="tab-info" class="tab">
+    <div style="font-size:20px;font-weight:800;padding:4px 0 8px">À propos</div>
+
+    <div class="info-section">
+      <div class="info-section-title">🎣 Théorie Solunar</div>
+      <div class="info-body">Développée par John Alden Knight en 1926. Les poissons sont plus actifs lors des transits et lever/coucher de lune.</div>
+      <div class="card" style="margin-bottom:8px">
+        <div class="card-title">Périodes majeures (~2h)</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">Lune au zénith (transit supérieur) ou au nadir (transit inférieur). Meilleure fenêtre de pêche.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Périodes mineures (~1h30)</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">Lever et coucher de la lune. Bonne activité, moindre qu'en période majeure.</div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">🌙 Phases lunaires & pêche</div>
+      <div class="phase-grid">
+        <div class="phase-item"><div class="phase-item-emoji">🌑</div><div class="phase-item-name">Nouvelle</div><div class="phase-item-stars">★★★★★</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌒</div><div class="phase-item-name">Croissant</div><div class="phase-item-stars">★★★☆☆</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌓</div><div class="phase-item-name">1er Quartier</div><div class="phase-item-stars">★★★☆☆</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌔</div><div class="phase-item-name">Gibbeuse+</div><div class="phase-item-stars">★★★★☆</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌕</div><div class="phase-item-name">Pleine Lune</div><div class="phase-item-stars">★★★★★</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌖</div><div class="phase-item-name">Gibbeuse-</div><div class="phase-item-stars">★★★★☆</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌗</div><div class="phase-item-name">Der. Quartier</div><div class="phase-item-stars">★★★☆☆</div></div>
+        <div class="phase-item"><div class="phase-item-emoji">🌘</div><div class="phase-item-name">Décroissant</div><div class="phase-item-stars">★★★☆☆</div></div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">🌊 Coefficient de marée (SHOM)</div>
+      <div class="info-body">Système français, de 20 (morte-eau) à 120 (vive-eau). Plus le coefficient est élevé, plus les courants sont forts et les poissons actifs.</div>
+      <div class="card" style="gap:6px;display:flex;flex-direction:column">
+        <div><span style="font-weight:600">95–120</span> <span style="color:var(--text2)">Grande vive-eau — forts courants</span></div>
+        <div><span style="font-weight:600">70–94</span>  <span style="color:var(--text2)">Vive-eau — bons courants</span></div>
+        <div><span style="font-weight:600">50–69</span>  <span style="color:var(--text2)">Intermédiaire</span></div>
+        <div><span style="font-weight:600">20–49</span>  <span style="color:var(--text2)">Morte-eau — eau calme</span></div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-section-title">📊 Calcul du score 0–100</div>
+      <div class="card" style="gap:8px;display:flex;flex-direction:column">
+        <div><span style="font-weight:600">0–30 pts</span> <span style="color:var(--text2)">Phase lunaire (pic à nouvelle/pleine lune)</span></div>
+        <div><span style="font-weight:600">0–60 pts</span> <span style="color:var(--text2)">Activité solunar courante</span></div>
+        <div><span style="font-weight:600">0–10 pts</span> <span style="color:var(--text2)">Bonus aube/crépuscule ±2h</span></div>
+      </div>
+    </div>
+
+    <div class="version-footer">
+      FishingCoef v1.0<br>
+      Clone Fishing Point • Calculs 100% locaux
+    </div>
+  </div>
+
+</div><!-- /#content -->
+
+<!-- ── Tab bar ──────────────────────────────────────────────────────────── -->
+<div id="tabbar">
+  <button class="tb active" data-tab="home" onclick="switchTab('home')">
+    <span class="tb-icon">🎣</span>
+    <span class="tb-label">Coefficient</span>
+  </button>
+  <button class="tb" data-tab="calendar" onclick="switchTab('calendar')">
+    <span class="tb-icon">📅</span>
+    <span class="tb-label">Calendrier</span>
+  </button>
+  <button class="tb" data-tab="info" onclick="switchTab('info')">
+    <span class="tb-icon">ℹ️</span>
+    <span class="tb-label">À propos</span>
+  </button>
+</div>
+
+</div><!-- /#app -->
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ASTRONOMY (Jean Meeus Astronomical Algorithms)
+// ══════════════════════════════════════════════════════════════════════════════
+const PI=Math.PI, RAD=PI/180, DEG=180/PI;
+const J1970=2440588, J2000=2451545, DAY_MS=86400000;
+const e_ecl=RAD*23.4397;
+
+const toJD=d=>d.getTime()/DAY_MS-0.5+J1970;
+const toDays=d=>toJD(d)-J2000;
+const fromJD=jd=>new Date((jd+0.5-J1970)*DAY_MS);
+
+const ra=(l,b)=>Math.atan2(Math.sin(l)*Math.cos(e_ecl)-Math.tan(b)*Math.sin(e_ecl),Math.cos(l));
+const dec=(l,b)=>Math.asin(Math.sin(b)*Math.cos(e_ecl)+Math.cos(b)*Math.sin(e_ecl)*Math.sin(l));
+const LST=(d,lw)=>RAD*(280.16+360.9856235*d)-lw;
+
+function moonCoords(d){
+  const L=RAD*(218.316+13.176396*d), M=RAD*(134.963+13.064993*d), F=RAD*(93.272+13.229350*d);
+  const l=L+RAD*6.289*Math.sin(M), b=RAD*5.128*Math.sin(F), dt=385001-20905*Math.cos(M);
+  return{ra:ra(l,b),dec:dec(l,b),dist:dt};
+}
+function sunCoords(d){
+  const M=RAD*(357.5291+0.98560028*d), L=RAD*(280.46966+0.98564736*d);
+  const C=RAD*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M)), P=RAD*102.9372;
+  const lam=L+C+P+PI;
+  return{dec:dec(lam,0),ra:ra(lam,0)};
+}
+
+function getMoonIllum(date){
+  const d=toDays(date), s=sunCoords(d), m=moonCoords(d), sd=149598000;
+  const phi=Math.acos(Math.sin(s.dec)*Math.sin(m.dec)+Math.cos(s.dec)*Math.cos(m.dec)*Math.cos(s.ra-m.ra));
+  const inc=Math.atan2(sd*Math.sin(phi),m.dist-sd*Math.cos(phi));
+  const ang=Math.atan2(Math.cos(s.dec)*Math.sin(s.ra-m.ra),Math.sin(s.dec)*Math.cos(m.dec)-Math.cos(s.dec)*Math.sin(m.dec)*Math.cos(s.ra-m.ra));
+  return{fraction:(1+Math.cos(inc))/2, phase:0.5+0.5*inc*(ang<0?-1:1)/PI};
+}
+
+function moonAlt(date,lat,lng){
+  const d=toDays(date), lw=RAD*-lng, phi=RAD*lat, m=moonCoords(d);
+  const H=LST(d,lw)-m.ra;
+  const h=Math.asin(Math.sin(phi)*Math.sin(m.dec)+Math.cos(phi)*Math.cos(m.dec)*Math.cos(H));
+  return h+RAD*0.017/Math.tan(h+RAD*10.26/(h*DEG+5.10));
+}
+
+function getMoonTimes(date,lat,lng){
+  const s0=new Date(date); s0.setHours(0,0,0,0);
+  const hc=RAD*0.133;
+  let h0=moonAlt(s0,lat,lng)-hc, rise=null, set=null;
+  for(let i=1;i<=24;i+=2){
+    const h1=moonAlt(new Date(s0.getTime()+i*3600000),lat,lng)-hc;
+    const h2=moonAlt(new Date(s0.getTime()+(i+1)*3600000),lat,lng)-hc;
+    const a=(h0+h2)/2-h1, b=(h2-h0)/2, xe=-b/(2*a), ye=(a*xe+b)*xe+h1, d2=b*b-4*a*h1;
+    let roots=0,x1=0,x2=0;
+    if(d2>=0){const dx=Math.sqrt(d2)/(Math.abs(a)*2);x1=xe-dx;x2=xe+dx;if(Math.abs(x1)<=1)roots++;if(Math.abs(x2)<=1)roots++;if(x1<-1)x1=x2;}
+    if(roots===1){if(h0<0){if(!rise)rise=new Date(s0.getTime()+(i+x1)*3600000);}else{if(!set)set=new Date(s0.getTime()+(i+x1)*3600000);}}
+    else if(roots===2){rise=new Date(s0.getTime()+(i+(ye<0?x2:x1))*3600000);set=new Date(s0.getTime()+(i+(ye<0?x1:x2))*3600000);}
+    if(rise&&set)break; h0=h2;
+  }
+  const samples=[];
+  for(let i=0;i<=144;i++){const t=new Date(s0.getTime()+i*600000);samples.push({t,alt:moonAlt(t,lat,lng)});}
+  let upT=null,loT=null;
+  for(let i=1;i<samples.length-1;i++){
+    const p=samples[i-1].alt,c=samples[i].alt,n=samples[i+1].alt;
+    if(c>p&&c>n&&!upT)upT=samples[i].t;
+    if(c<p&&c<n&&!loT)loT=samples[i].t;
+    if(upT&&loT)break;
+  }
+  return{rise,set,upper:upT,lower:loT};
+}
+
+function getSunTimes(date,lat,lng){
+  const lw=RAD*-lng,phi=RAD*lat,d=toDays(date),J0=0.0009;
+  const n=Math.round(d-J0-lw/(2*PI));
+  const ds=J0+(lw/(2*PI))+n; // approxTransit
+  const ds2=J0+(0+lw)/(2*PI)+n;
+  const M=RAD*(357.5291+0.98560028*ds2), L=RAD*(280.46966+0.98564736*ds2);
+  const C=RAD*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M)), P=RAD*102.9372;
+  const lam=L+C+P+PI, decl=dec(lam,0);
+  const Jnoon=J2000+ds2+0.0053*Math.sin(M)-0.0069*Math.sin(2*lam);
+  const h0=RAD*(-0.833);
+  let w;
+  try{w=Math.acos((Math.sin(h0)-Math.sin(phi)*Math.sin(decl))/(Math.cos(phi)*Math.cos(decl)));}
+  catch{return{sunrise:null,sunset:null};}
+  const Jtransit=d=>J2000+d+0.0053*Math.sin(M)-0.0069*Math.sin(2*lam);
+  const apT=(Ht,lw,n)=>J0+(Ht+lw)/(2*PI)+n;
+  const a=apT(w,lw,n), b=apT(-w,lw,n);
+  return{sunrise:fromJD(Jtransit(a)),sunset:fromJD(Jtransit(b))};
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SOLUNAR
+// ══════════════════════════════════════════════════════════════════════════════
+const MAJOR_HALF=60*60000, MINOR_HALF=45*60000;
+
+function moonPhaseFactor(p){return Math.pow(Math.abs(Math.cos(p*2*PI)),0.4);}
+
+function proxFactor(now,center,half){
+  const d=Math.abs(now-center);
+  if(d>half)return 0;
+  return(1+Math.cos(PI*d/half))/2;
+}
+
+function buildPeriods(mt){
+  const periods=[];
+  const add=(c,type)=>{if(!c)return;const h=type==='major'?MAJOR_HALF:MINOR_HALF;periods.push({type,start:new Date(c.getTime()-h),end:new Date(c.getTime()+h),center:c});};
+  add(mt.upper,'major'); add(mt.lower,'major'); add(mt.rise,'minor'); add(mt.set,'minor');
+  return periods.sort((a,b)=>a.start-b.start);
+}
+
+function solunarFactor(nowMs,periods){
+  let best=0;
+  for(const p of periods){
+    const c=(p.start.getTime()+p.end.getTime())/2;
+    const h=p.type==='major'?MAJOR_HALF:MINOR_HALF;
+    const f=proxFactor(nowMs,c,h*1.5);
+    if(f>best)best=f;
+  }
+  return best;
+}
+
+function dawnDuskFactor(date,lat,lng){
+  try{const{sunrise,sunset}=getSunTimes(date,lat,lng);if(!sunrise||!sunset)return 0;
+  const now=date.getTime(),win=2*3600000;
+  return Math.max(proxFactor(now,sunrise.getTime(),win),proxFactor(now,sunset.getTime(),win));}
+  catch{return 0;}
+}
+
+function computeScore(date,lat,lng,pf,periods){
+  const sol=solunarFactor(date.getTime(),periods);
+  const dawn=dawnDuskFactor(date,lat,lng);
+  return Math.min(100,Math.round(pf*30+sol*60+dawn*10));
+}
+
+function getRating(s){return s>=80?'Excellent':s>=60?'Très bon':s>=40?'Bon':s>=20?'Moyen':'Faible';}
+
+function getScoreColor(s){return s>=80?'#00E676':s>=60?'#69F0AE':s>=40?'#FFD740':s>=20?'#FF9800':'#F44336';}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TIDES
+// ══════════════════════════════════════════════════════════════════════════════
+const KNOWN_PERIGEE_JD=2458120.413, ANOMALISTIC_MONTH=27.554551868;
+
+function anomPhase(date){const jd=toJD(date);const r=((jd-KNOWN_PERIGEE_JD)%ANOMALISTIC_MONTH)/ANOMALISTIC_MONTH;return r<0?r+1:r;}
+
+function getTideCoef(date){
+  const{phase}=getMoonIllum(date);
+  const sf=Math.abs(Math.cos(phase*2*PI));
+  const pf=Math.cos(anomPhase(date)*2*PI);
+  const c=Math.round(Math.max(20,Math.min(120,70+45*sf+12*pf)));
+  let label,color;
+  if(c>=110){label='Vive-eau except.';color='#EF5350';}
+  else if(c>=90){label='Grande vive-eau';color='#FF9800';}
+  else if(c>=70){label='Vive-eau';color='#FF9800';}
+  else if(c>=50){label='Intermédiaire';color='#66BB6A';}
+  else if(c>=35){label='Morte-eau';color='#42A5F5';}
+  else{label='Petite morte-eau';color='#42A5F5';}
+  const regime=c>=70?'Vive-eau':c>=50?'Intermédiaire':'Morte-eau';
+  return{coefficient:c,label,color,regime};
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PHASE NAMES
+// ══════════════════════════════════════════════════════════════════════════════
+function phaseName(p){
+  if(p<0.0625||p>=0.9375)return'Nouvelle Lune';
+  if(p<0.1875)return'Premier Croissant';
+  if(p<0.3125)return'Premier Quartier';
+  if(p<0.4375)return'Gibbeuse Croissante';
+  if(p<0.5625)return'Pleine Lune';
+  if(p<0.6875)return'Gibbeuse Décroissante';
+  if(p<0.8125)return'Dernier Quartier';
+  return'Dernier Croissant';
+}
+function phaseEmoji(p){return['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'][Math.round(p*8)%8];}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// APP STATE
+// ══════════════════════════════════════════════════════════════════════════════
+const DAYS_FR=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const DAYS_LONG=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+let loc={lat:48.3904,lng:-4.4861,name:'Brest, Bretagne'};
+let timerClock,timerUpdate;
+
+function fmt(d){if(!d)return'--:--';return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════════════════
+function render(){
+  const now=new Date();
+  const{lat,lng}=loc;
+
+  // Clock
+  document.getElementById('clock').textContent=fmt(now);
+
+  // Illumination
+  const illum=getMoonIllum(now);
+  const pf=moonPhaseFactor(illum.phase);
+
+  // Moon times
+  const mt=getMoonTimes(now,lat,lng);
+  const periods=buildPeriods(mt);
+
+  // Score
+  const score=computeScore(now,lat,lng,pf,periods);
+  const rating=getRating(score);
+  const color=getScoreColor(score);
+
+  // Gauge
+  const ARC=419; // circumference of 300° arc on r=80
+  const filled=Math.round(score/100*ARC);
+  const gf=document.getElementById('gauge-fill');
+  gf.setAttribute('stroke-dasharray',`${filled} 503`);
+  gf.setAttribute('stroke',color);
+  document.getElementById('gauge-score').textContent=score;
+  const gr=document.getElementById('gauge-rating');
+  gr.textContent=rating;
+  gr.setAttribute('fill',color);
+
+  // Stats
+  document.getElementById('s-phase').textContent=Math.round(illum.phase*100)+'%';
+  document.getElementById('s-illum').textContent=Math.round(illum.fraction*100)+'%';
+
+  // Tides
+  const tide=getTideCoef(now);
+  document.getElementById('s-coef').textContent=tide.coefficient;
+  document.getElementById('tide-coef').textContent=tide.coefficient;
+  document.getElementById('tide-coef').style.color=tide.color;
+  const tb=document.getElementById('tide-regime-badge');
+  tb.textContent=tide.regime;
+  tb.style.borderColor=tide.color;
+  tb.style.color=tide.color;
+  document.getElementById('tide-label').textContent=tide.label;
+  const pct=((tide.coefficient-20)/100*100).toFixed(1)+'%';
+  document.getElementById('coef-fill').style.width=pct;
+  document.getElementById('coef-fill').style.background=tide.color;
+  document.getElementById('coef-cursor').style.left=pct;
+  document.getElementById('tide-info').textContent=
+    tide.coefficient>=70?'🌊 Forts courants — excellent brassage. Poissons très actifs en vive-eau.':
+    tide.coefficient>=50?'🌊 Courants modérés — conditions intermédiaires.':
+    '🌊 Faibles courants — eau calme. Postes profonds recommandés.';
+
+  // Hourly chart
+  const dayStart=new Date(now); dayStart.setHours(0,0,0,0);
+  const hourScores=Array.from({length:24},(_,h)=>{
+    const t=new Date(dayStart.getTime()+h*3600000);
+    return computeScore(t,lat,lng,pf,periods);
+  });
+  const maxS=Math.max(...hourScores,1);
+  let chartHTML='';
+  for(let h=0;h<24;h++){
+    const s=hourScores[h];
+    const barH=Math.max(4,Math.round(s/maxS*72));
+    const isCur=h===now.getHours();
+    let barColor=getScoreColor(s);
+    // Check if in period
+    const hMs=dayStart.getTime()+h*3600000;
+    for(const p of periods){
+      if(hMs>=p.start.getTime()&&hMs<p.end.getTime()){
+        barColor=p.type==='major'?'#00D4E8':'#1E90FF';
+        break;
+      }
+    }
+    chartHTML+=`<div class="bar-col">
+      ${isCur?'<div class="bar-cursor"></div>':''}
+      <div class="bar" style="height:${barH}px;background:${barColor};opacity:${barColor==='#00D4E8'||barColor==='#1E90FF'?1:0.6}"></div>
+      ${h%3===0?`<div class="bar-label${isCur?' now':''}">${String(h).padStart(2,'0')}h</div>`:''}
+    </div>`;
+  }
+  document.getElementById('chart-inner').innerHTML=chartHTML;
+
+  // Solunar periods
+  let solHTML='';
+  for(const p of periods){
+    const isActive=now>=p.start&&now<=p.end;
+    const isMajor=p.type==='major';
+    solHTML+=`<div class="period-row${isActive?' active-period':''}">
+      <div class="badge ${isMajor?'major':'minor'}">${isMajor?'MAJEURE':'MINEURE'}</div>
+      <div class="period-info">
+        <div class="period-time${isActive?' active-period':''}">${fmt(p.start)} – ${fmt(p.end)}</div>
+        <div class="period-desc">${isMajor?'2h de pêche optimale':'1h30 de bonne pêche'}</div>
+      </div>
+      ${isActive?'<div class="active-dot"></div>':''}
+    </div>`;
+  }
+  document.getElementById('solunar-list').innerHTML=solHTML||'<div style="color:var(--muted);padding:8px">Aucune période pour ce lieu</div>';
+
+  // Moon card
+  document.getElementById('moon-emoji').textContent=phaseEmoji(illum.phase);
+  document.getElementById('moon-phase-name').textContent=phaseName(illum.phase);
+  const illumPct=Math.round(illum.fraction*100);
+  document.getElementById('moon-illum-label').textContent=`Illumination : ${illumPct}%`;
+  document.getElementById('illum-fill').style.width=illumPct+'%';
+  document.getElementById('moon-rise').textContent=fmt(mt.rise);
+  document.getElementById('moon-transit').textContent=fmt(mt.upper);
+  document.getElementById('moon-set').textContent=fmt(mt.set);
+
+  // ── ✨ Sunrise/Sunset & Heures d'or ────────────────────────────────────────
+  try{
+    const st=getSunTimes(now,lat,lng);
+    document.getElementById('sun-rise').textContent=fmt(st.sunrise);
+    document.getElementById('sun-set').textContent=fmt(st.sunset);
+    // Solar noon approx = midpoint
+    if(st.sunrise&&st.sunset){
+      const noon=new Date((st.sunrise.getTime()+st.sunset.getTime())/2);
+      document.getElementById('sun-noon').textContent=fmt(noon);
+      const gh1s=fmt(new Date(st.sunrise.getTime()-30*60000));
+      const gh1e=fmt(new Date(st.sunrise.getTime()+30*60000));
+      const gh2s=fmt(new Date(st.sunset.getTime()-30*60000));
+      const gh2e=fmt(new Date(st.sunset.getTime()+30*60000));
+      document.getElementById('golden-hours-text').textContent=`(${gh1s}–${gh1e} et ${gh2s}–${gh2e})`;
+    }
+  }catch{}
+
+  // ── ✨ Meilleur créneau du jour ─────────────────────────────────────────────
+  const dayStart2=new Date(now); dayStart2.setHours(0,0,0,0);
+  let bestScore=0, bestH=0;
+  for(let h=0;h<24;h++){
+    const t=new Date(dayStart2.getTime()+h*3600000);
+    const s=computeScore(t,lat,lng,pf,periods);
+    if(s>bestScore){bestScore=s;bestH=h;}
+  }
+  const bestStart=`${String(bestH).padStart(2,'0')}:00`;
+  const bestEnd=`${String(bestH+1).padStart(2,'0')}:00`;
+  const bestColor=getScoreColor(bestScore);
+  const bestPeriod=periods.find(p=>{const ms=dayStart2.getTime()+bestH*3600000;return ms>=p.start.getTime()&&ms<p.end.getTime();});
+  document.getElementById('best-slot-content').innerHTML=
+    `<div style="display:flex;align-items:center;gap:12px;padding:4px 0">
+      <div style="font-size:36px;font-weight:800;color:${bestColor}">${bestScore}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:${bestColor}">${bestStart} – ${bestEnd}</div>
+        <div style="color:var(--text2);margin-top:2px">${bestPeriod?`Période ${bestPeriod.type==='major'?'majeure 🌙':'mineure 🌒'}`:getRating(bestScore)}</div>
+      </div>
+    </div>
+    <div style="background:var(--card2);border-radius:8px;padding:8px;margin-top:6px;font-size:12px;color:var(--text2)">
+      💡 Score ${bestScore}/100 — ${bestPeriod?'Profite de la période solunar active !':'Combine avec les heures d\'aube pour maximiser.'}
+    </div>`;
+
+  // ── ✨ Conseils par espèce ──────────────────────────────────────────────────
+  const SPECIES=[
+    {name:'Brochet',emoji:'🐟',moonPref:'new',tideMin:0,
+     tip:()=>illum.phase<0.15||illum.phase>0.85?'🟢 Excellent — brochet très actif à la nouvelle lune':'🟡 Conditions normales'},
+    {name:'Carpe',emoji:'🐡',moonPref:'full',tideMin:0,
+     tip:()=>illum.phase>0.4&&illum.phase<0.6?'🟢 Pleine lune — carpes qui sautent la nuit':'🟡 Tôt le matin recommandé'},
+    {name:'Perche',emoji:'🐠',moonPref:'any',tideMin:0,
+     tip:()=>score>=60?'🟢 Score élevé — perches actives en surface':'🟡 Pêche en profondeur conseillée'},
+    {name:'Bar / Loup',emoji:'🦈',moonPref:'spring',tideMin:70,
+     tip:()=>getTideCoef(now).coefficient>=70?`🟢 Vive-eau (${getTideCoef(now).coefficient}) — bar en chasse près des courants`:'🔴 Morte-eau — postes abrités'},
+    {name:'Daurade',emoji:'🐡',moonPref:'spring',tideMin:60,
+     tip:()=>getTideCoef(now).coefficient>=60?'🟢 Marée favorable — daurades actives sur les tombants':'🟡 Fonds sableux, pêche posée'},
+  ];
+  let spHTML='';
+  for(const sp of SPECIES){
+    spHTML+=`<div style="display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:10px">
+      <span style="font-size:22px">${sp.emoji}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${sp.name}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${sp.tip()}</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('species-tips').innerHTML=spHTML;
+
+  // Calendar tab
+  renderCalendar(now,lat,lng);
+}
+
+function renderCalendar(now,lat,lng){
+  document.getElementById('cal-heading').textContent=`${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+
+  const forecast=Array.from({length:7},(_,i)=>{
+    const d=new Date(now); d.setDate(d.getDate()+i); d.setHours(12,0,0,0);
+    const illum=getMoonIllum(d);
+    const pf=moonPhaseFactor(illum.phase);
+    const mt=getMoonTimes(d,lat,lng);
+    const periods=buildPeriods(mt);
+    const score=computeScore(d,lat,lng,pf,periods);
+    const tide=getTideCoef(d);
+    return{date:d,score,rating:getRating(score),phase:illum.phase,tide:tide.coefficient};
+  });
+
+  // Week chips
+  let weekHTML='';
+  for(const day of forecast){
+    const isToday=day.date.toDateString()===now.toDateString();
+    const c=getScoreColor(day.score);
+    weekHTML+=`<div class="day-chip${isToday?' today':''}">
+      <div class="day-name">${DAYS_FR[day.date.getDay()]}</div>
+      <div class="day-num">${day.date.getDate()}</div>
+      <div class="day-moon">${phaseEmoji(day.phase)}</div>
+      <div class="day-bar-wrap"><div class="day-bar" style="height:${day.score}%;background:${c}"></div></div>
+      <div class="day-score" style="color:${c}">${day.score}</div>
+    </div>`;
+  }
+  document.getElementById('week-inner').innerHTML=weekHTML;
+
+  // Detail list
+  let detHTML='';
+  for(const day of forecast){
+    const isToday=day.date.toDateString()===now.toDateString();
+    const c=getScoreColor(day.score);
+    detHTML+=`<div class="detail-row${isToday?' today':''}">
+      <div class="detail-left">
+        <div class="detail-dayname">${isToday?"Aujourd'hui":DAYS_LONG[day.date.getDay()]}</div>
+        <div class="detail-date">${day.date.getDate()} ${MONTHS[day.date.getMonth()]}</div>
+      </div>
+      <div style="font-size:22px">${phaseEmoji(day.phase)}</div>
+      <div class="detail-center">
+        <div class="detail-phase">${phaseName(day.phase)}</div>
+        <div class="detail-tide">Marée : ${day.tide}/120</div>
+      </div>
+      <div class="detail-right">
+        <div class="detail-score" style="color:${c}">${day.score}</div>
+        <div class="detail-rating" style="color:${c}">${day.rating}</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('detail-list').innerHTML=detHTML;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════════════════
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelector(`.tb[data-tab="${name}"]`).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GEOLOCATION
+// ══════════════════════════════════════════════════════════════════════════════
+async function getLocation(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const{latitude:lat,longitude:lng}=pos.coords;
+    let name='Ma position';
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`);
+      const j=await r.json();
+      name=j.address?.city||j.address?.town||j.address?.village||j.address?.county||'Ma position';
+      const region=j.address?.state||'';
+      if(region&&region!==name)name=`${name}, ${region}`;
+    }catch{}
+    loc={lat,lng,name};
+    document.getElementById('loc').textContent='📍 '+name;
+    document.getElementById('loc-sub').textContent=`${lat.toFixed(4)}° N, ${Math.abs(lng).toFixed(4)}° ${lng<0?'O':'E'}`;
+    render();
+  },()=>{
+    document.getElementById('loc').textContent='📍 '+loc.name;
+    document.getElementById('loc-sub').textContent='Position par défaut';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════════════
+(function init(){
+  document.getElementById('loc').textContent='📍 '+loc.name;
+  document.getElementById('loc-sub').textContent='Bretagne, France';
+  render();
+  timerClock=setInterval(()=>{
+    document.getElementById('clock').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  },10000);
+  timerUpdate=setInterval(render,60000);
+  getLocation();
+})();
+</script>
+</body>
+</html>
