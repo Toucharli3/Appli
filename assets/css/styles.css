@@ -41,6 +41,19 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ---------- Scroll progress ---------- */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: linear-gradient(90deg, var(--sage-500), var(--terra-500));
+  z-index: 200;
+  transition: width 0.1s linear;
+  pointer-events: none;
+}
+
 /* ---------- Reset ---------- */
 *,
 *::before,
@@ -72,6 +85,15 @@ a {
 }
 a:hover {
   color: var(--terra-600);
+}
+::selection {
+  background: var(--sage-300);
+  color: var(--sage-900);
+}
+:focus-visible {
+  outline: 3px solid var(--terra-500);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 h1,
 h2,
@@ -1095,6 +1117,25 @@ p {
 .reveal.is-visible {
   opacity: 1;
   transform: none;
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .float-blob {
+    animation: none !important;
+  }
 }
 
 /* ---------- Responsive ---------- */
