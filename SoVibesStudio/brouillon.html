@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Espace rédaction — Publier un article — SoVibeS’tudio</title>
-  <meta name="description" content="Espace de rédaction du blog SoVibeS’tudio : écrire, prévisualiser et publier des articles.">
+  <title>Brouillon local — SoVibeS’tudio</title>
+  <meta name="description" content="Éditeur de brouillon local : préparer un article hors-ligne avant de le publier via le CMS.">
   <meta name="robots" content="noindex">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,17 +17,20 @@
 
   <section class="page-hero" style="padding-bottom:clamp(28px,4vw,44px)">
     <div class="container">
-      <div class="breadcrumb"><a href="index.html">Accueil</a> / <a href="blog.html">Blog</a> / Espace rédaction</div>
-      <span class="eyebrow">Espace rédaction</span>
-      <h1>Écrire & publier un article</h1>
-      <p class="lead">Rédigez en Markdown, prévisualisez en direct, puis publiez. Vos articles apparaissent aussitôt dans le blog.</p>
+      <div class="breadcrumb"><a href="index.html">Accueil</a> / <a href="blog.html">Blog</a> / Brouillon local</div>
+      <span class="eyebrow">Éditeur de brouillon</span>
+      <h1>Préparer un article, tranquillement</h1>
+      <p class="lead">Un espace pour rédiger sans compte, même hors-ligne. L’aperçu est immédiat sur <em>ce</em> navigateur. Pour <strong>publier réellement</strong> l’article pour tout le monde, utilisez le back-office en ligne.</p>
+      <div style="margin-top:1.6rem">
+        <a class="btn btn--primary btn--sm" href="admin/">→ Ouvrir le back-office en ligne (publier)</a>
+      </div>
     </div>
   </section>
 
   <section class="section" style="padding-top:2.5rem">
     <div class="container">
       <div class="badge-note">
-        ℹ️ <strong>Comment ça marche ?</strong> Les articles publiés ici sont enregistrés dans <em>ce navigateur</em> (localStorage) et s’affichent immédiatement sur le blog. Pour les rendre visibles par tout le monde et de façon permanente, cliquez sur <strong>« Exporter »</strong> et transmettez le fichier <code>.json</code> pour l’intégrer au site (dans <code>assets/js/blog.js</code>).
+        ℹ️ <strong>Local vs en ligne.</strong> Les brouillons rédigés ici restent dans <em>ce navigateur</em> (ils ne sont visibles que par vous). C’est pratique pour préparer un texte. Pour le mettre <strong>en ligne pour tous</strong>, recopiez-le dans le <a href="admin/">back-office en ligne</a>, ou utilisez <strong>« Exporter »</strong> puis <strong>« Importer »</strong> là-bas.
       </div>
 
       <div class="admin-layout">
@@ -74,14 +77,14 @@
             </div>
 
             <div class="admin-actions">
-              <button type="submit" class="btn btn--primary">Publier l’article</button>
+              <button type="submit" class="btn btn--primary">Enregistrer le brouillon</button>
               <button type="button" class="btn btn--ghost btn--sm" id="resetBtn">Nouveau</button>
             </div>
           </form>
 
           <hr style="border:0;border-top:1px solid var(--sand-200);margin:1.8rem 0">
 
-          <h3 style="font-size:1.2rem">Mes articles publiés <span class="muted" id="localCount" style="font-family:var(--font-sans);font-size:.9rem"></span></h3>
+          <h3 style="font-size:1.2rem">Mes brouillons <span class="muted" id="localCount" style="font-family:var(--font-sans);font-size:.9rem"></span></h3>
           <ul class="admin-list" id="localList"></ul>
 
           <div class="admin-actions" style="margin-top:1.4rem">
@@ -198,7 +201,7 @@
       B.upsert(d);
       resetForm();
       renderLocalList();
-      window.SVS.toast("Article publié ✨ Il est en ligne sur le blog.");
+      window.SVS.toast("Brouillon enregistré ✨ (visible sur ce navigateur)");
     });
 
     $("resetBtn").addEventListener("click", resetForm);

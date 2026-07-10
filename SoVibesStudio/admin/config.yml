@@ -1,0 +1,50 @@
+# =========================================================
+# SoVibeS'tudio — Configuration du CMS (Sveltia / Decap)
+# =========================================================
+backend:
+  name: github
+  repo: Toucharli3/Appli
+  # ⚠️ Quand le site sera fusionné dans "main", remplacer par : main
+  branch: claude/sovibes-studio-redesign-z0ow0u
+  # URL du micro-service d'authentification GitHub (voir CMS-SETUP.md).
+  # Remplacer par l'adresse de VOTRE worker Cloudflare, ex :
+  #   base_url: https://sovibes-auth.VOTRE-COMPTE.workers.dev
+  base_url: https://REMPLACER-PAR-VOTRE-WORKER.workers.dev
+
+# Dossier où le CMS enregistre les images téléversées (chemin dans le dépôt)
+media_folder: "SoVibesStudio/assets/uploads"
+# Chemin public de ces images tel qu'utilisé dans le site (relatif à la racine)
+public_folder: "assets/uploads"
+
+# Langue de l'interface
+locale: fr
+
+site_url: https://www.sovibesstudio.com
+display_url: https://www.sovibesstudio.com
+logo_url: https://www.sovibesstudio.com/assets/uploads/logo.png
+
+collections:
+  - name: articles
+    label: "Articles du blog"
+    label_singular: "Article"
+    description: "Rédigez et publiez les articles du blog. Une fois enregistré, l'article est mis en ligne automatiquement en 1 à 2 minutes."
+    folder: "SoVibesStudio/content/articles"
+    create: true
+    delete: true
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}}  ·  {{date}}"
+    sortable_fields: [date, title, category]
+    fields:
+      - { label: "Titre", name: "title", widget: "string" }
+      - { label: "Date", name: "date", widget: "datetime", date_format: "YYYY-MM-DD", time_format: false, format: "YYYY-MM-DD", default: "" }
+      - label: "Catégorie"
+        name: "category"
+        widget: "select"
+        default: "Sérénité"
+        options: ["Sérénité", "Yoga danse", "Yog'hiit", "Énergie", "Vitalité", "Alimentation", "Actualités"]
+      - { label: "Auteur", name: "author", widget: "string", default: "Anne-Sophie" }
+      - { label: "Image de couverture (URL ou téléversement)", name: "cover", widget: "image", required: false, choose_url: true, hint: "Vous pouvez téléverser une photo ou coller l'adresse d'une image." }
+      - { label: "Résumé / accroche", name: "excerpt", widget: "text", required: false, hint: "Une phrase qui donne envie de lire (facultatif)." }
+      - { label: "Contenu de l'article", name: "body", widget: "markdown" }

@@ -14,28 +14,43 @@ Site **statique** (HTML / CSS / JavaScript, sans dépendances ni build) — rapi
 | `cours-en-ligne.html` | Vidéothèque : cours gratuits + abonnement 10 €/mois |
 | `blog.html` | Liste des articles, filtrable par catégorie |
 | `article.html` | Lecture d'un article (`?slug=...`) |
-| `admin.html` | **Espace de rédaction** : écrire / publier / éditer des articles |
+| `admin/` | **Back-office en ligne** (Sveltia CMS) : écrire / publier de vrais articles |
+| `brouillon.html` | Éditeur de brouillon local (hors-ligne, sans compte) |
 | `contact.html` | Coordonnées + formulaire (ouvre le mail pré-rempli) |
 | `mentions-legales.html` | Mentions légales & RGPD |
 
-## Blog & espace de rédaction
+## Blog — architecture
 
-Le blog est la nouveauté principale. Deux sources d'articles se combinent :
+Le blog est **piloté par les données** (aucun texte en dur dans le JavaScript) :
 
-1. **Articles « seed »** intégrés au code, dans `assets/js/blog.js` (visibles par tout le monde, en permanence).
-2. **Articles rédigés en ligne** via `admin.html`, enregistrés dans le `localStorage` du navigateur.
+```
+content/articles/*.md   →  (build)  →  data/articles.json  →  (fetch)  →  blog
+   ▲ écrits par le CMS                  généré automatiquement            affiché
+```
 
-### Écrire un article
-1. Ouvrir `admin.html` (lien « Espace rédaction » en pied de page / bouton sur le blog).
-2. Rédiger en **Markdown** (`## titre`, `**gras**`, `*italique*`, `- liste`, `> citation`, `[lien](url)`, `![alt](img)`), avec **aperçu en direct**.
-3. Cliquer sur **Publier** → l'article apparaît aussitôt sur le blog.
-4. Modifier / supprimer ses articles depuis la liste en bas de page.
+1. Chaque article est un fichier **Markdown** dans `content/articles/`, avec un
+   en-tête (front-matter) : `title`, `date`, `category`, `author`, `cover`, `excerpt`.
+2. Le script `scripts/build-articles.mjs` compile ces fichiers en
+   `data/articles.json` (lancé automatiquement à chaque déploiement).
+3. `assets/js/blog.js` charge ce JSON et affiche la liste, les articles et les
+   « derniers articles » de l'accueil. Il gère aussi un rendu Markdown maison.
 
-### Rendre un article permanent pour tous les visiteurs
-Le `localStorage` est propre à chaque navigateur. Pour publier « pour de vrai » :
-1. Dans `admin.html`, cliquer **⬇ Exporter (.json)**.
-2. Copier les objets du fichier téléchargé dans le tableau `SEED` de `assets/js/blog.js`.
-3. Commiter & pousser. (Ou réimporter le `.json` sur un autre poste via **⬆ Importer**.)
+### Trois façons d'ajouter un article
+- **En ligne (recommandé)** : via le back-office `admin/` → voir `CMS-SETUP.md`.
+- **À la main** : créer un fichier `.md` dans `content/articles/` (copier un
+  existant comme modèle) puis commit.
+- **Brouillon rapide** : `brouillon.html` (localStorage, aperçu direct, export/import
+  JSON) pour préparer un texte avant de le publier.
+
+Après ajout, relancer le build localement si besoin :
+```bash
+node scripts/build-articles.mjs
+```
+
+## Mise en ligne & CMS
+
+👉 Tout est expliqué pas à pas dans **`CMS-SETUP.md`** : publier gratuitement sur
+GitHub Pages, brancher le domaine OVH, et activer le back-office du blog.
 
 ## Développement local
 

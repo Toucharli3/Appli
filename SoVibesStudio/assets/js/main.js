@@ -16,7 +16,7 @@
   var current = (location.pathname.split("/").pop() || "index.html").toLowerCase();
   if (current === "" ) current = "index.html";
   // article.html / admin.html highlight blog
-  var activeMap = { "article.html": "blog.html", "admin.html": "blog.html" };
+  var activeMap = { "article.html": "blog.html", "brouillon.html": "blog.html" };
   var activeHref = activeMap[current] || current;
 
   function buildHeader() {
@@ -65,7 +65,7 @@
       "</ul></div>" +
       "<div><h4>Infos</h4><ul>" +
       '<li><a href="contact.html">Contact</a></li>' +
-      '<li><a href="admin.html">Espace rédaction</a></li>' +
+      '<li><a href="admin/">Espace rédaction (blog)</a></li>' +
       '<li><a href="mentions-legales.html">Mentions légales</a></li>' +
       "</ul></div>" +
       "<div><h4>Me contacter</h4><ul>" +
@@ -106,12 +106,21 @@
       });
     }
 
-    // Header shadow on scroll
+    // Scroll progress bar
+    var progress = document.createElement("div");
+    progress.className = "scroll-progress";
+    document.body.appendChild(progress);
+
+    // Header shadow + progress on scroll
     var header = document.getElementById("siteHeader");
     var onScroll = function () {
       if (header) header.classList.toggle("is-scrolled", window.scrollY > 8);
+      var h = document.documentElement;
+      var max = h.scrollHeight - h.clientHeight;
+      progress.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + "%";
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
     onScroll();
 
     // Reveal on scroll

@@ -182,13 +182,7 @@
   <script src="assets/js/blog.js"></script>
   <script src="assets/js/main.js"></script>
   <script>
-    (function () {
-      var mount = document.querySelector("[data-latest-posts]");
-      if (mount && window.Blog) {
-        mount.innerHTML = window.Blog.all().slice(0, 3).map(window.Blog.postCard).join("");
-        mount.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("is-visible"); });
-      }
-    })();
+    window.Blog.renderLatest("[data-latest-posts]", 3);
   </script>
 </body>
 </html>
