@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article — SoVibeS’tudio</title>
+  <meta name="description" content="Article du blog SoVibeS’tudio.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%236b8e7f'/%3E%3Ctext x='50' y='68' font-size='55' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <div data-header></div>
+
+  <section class="section" style="padding-top:clamp(48px,7vw,90px)">
+    <div class="container" data-article></div>
+  </section>
+
+  <section class="section--tight" style="background:var(--sand-100)">
+    <div class="container">
+      <div class="center" style="margin-bottom:2rem"><span class="eyebrow">À lire aussi</span><h2>Autres articles</h2></div>
+      <div class="post-grid" data-related></div>
+    </div>
+  </section>
+
+  <div data-footer></div>
+  <script src="assets/js/blog.js"></script>
+  <script src="assets/js/main.js"></script>
+  <script>
+    window.Blog.renderArticle("[data-article]");
+  </script>
+</body>
+</html>
