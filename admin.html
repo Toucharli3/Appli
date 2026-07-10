@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espace rédaction — Publier un article — SoVibeS’tudio</title>
+  <meta name="description" content="Espace de rédaction du blog SoVibeS’tudio : écrire, prévisualiser et publier des articles.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%236b8e7f'/%3E%3Ctext x='50' y='68' font-size='55' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <div data-header></div>
+
+  <section class="page-hero" style="padding-bottom:clamp(28px,4vw,44px)">
+    <div class="container">
+      <div class="breadcrumb"><a href="index.html">Accueil</a> / <a href="blog.html">Blog</a> / Espace rédaction</div>
+      <span class="eyebrow">Espace rédaction</span>
+      <h1>Écrire & publier un article</h1>
+      <p class="lead">Rédigez en Markdown, prévisualisez en direct, puis publiez. Vos articles apparaissent aussitôt dans le blog.</p>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:2.5rem">
+    <div class="container">
+      <div class="badge-note">
+        ℹ️ <strong>Comment ça marche ?</strong> Les articles publiés ici sont enregistrés dans <em>ce navigateur</em> (localStorage) et s’affichent immédiatement sur le blog. Pour les rendre visibles par tout le monde et de façon permanente, cliquez sur <strong>« Exporter »</strong> et transmettez le fichier <code>.json</code> pour l’intégrer au site (dans <code>assets/js/blog.js</code>).
+      </div>
+
+      <div class="admin-layout">
+        <!-- EDITOR -->
+        <div class="admin-panel">
+          <form id="editorForm" class="form">
+            <input type="hidden" id="editingSlug">
+            <div class="field">
+              <label for="title">Titre de l’article *</label>
+              <input type="text" id="title" placeholder="Ex : 5 rituels du matin pour rayonner" required>
+            </div>
+            <div class="grid grid--2" style="gap:1.1rem">
+              <div class="field">
+                <label for="category">Catégorie</label>
+                <input type="text" id="category" list="cats" placeholder="Sérénité, Yoga danse, Énergie…">
+                <datalist id="cats">
+                  <option>Sérénité</option><option>Yoga danse</option><option>Yog’hiit</option>
+                  <option>Énergie</option><option>Vitalité</option><option>Alimentation</option>
+                </datalist>
+              </div>
+              <div class="field">
+                <label for="author">Auteur</label>
+                <input type="text" id="author" placeholder="Anne-Sophie" value="Anne-Sophie">
+              </div>
+            </div>
+            <div class="grid grid--2" style="gap:1.1rem">
+              <div class="field">
+                <label for="date">Date</label>
+                <input type="date" id="date">
+              </div>
+              <div class="field">
+                <label for="cover">Image de couverture (URL)</label>
+                <input type="url" id="cover" placeholder="https://…/photo.jpg">
+              </div>
+            </div>
+            <div class="field">
+              <label for="excerpt">Chapô / résumé court</label>
+              <textarea id="excerpt" style="min-height:70px" placeholder="Une phrase d’accroche qui donne envie de lire."></textarea>
+            </div>
+            <div class="field">
+              <label for="body">Contenu (Markdown) *</label>
+              <textarea id="body" style="min-height:280px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.95rem" placeholder="## Un sous-titre&#10;&#10;Votre texte… **gras**, *italique*, [lien](https://…).&#10;&#10;- point un&#10;- point deux&#10;&#10;> Une citation inspirante."></textarea>
+              <p class="form-note">Astuce Markdown : <code>## Titre</code>, <code>**gras**</code>, <code>*italique*</code>, <code>- liste</code>, <code>&gt; citation</code>, <code>[texte](url)</code>, <code>![alt](image)</code>.</p>
+            </div>
+
+            <div class="admin-actions">
+              <button type="submit" class="btn btn--primary">Publier l’article</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="resetBtn">Nouveau</button>
+            </div>
+          </form>
+
+          <hr style="border:0;border-top:1px solid var(--sand-200);margin:1.8rem 0">
+
+          <h3 style="font-size:1.2rem">Mes articles publiés <span class="muted" id="localCount" style="font-family:var(--font-sans);font-size:.9rem"></span></h3>
+          <ul class="admin-list" id="localList"></ul>
+
+          <div class="admin-actions" style="margin-top:1.4rem">
+            <button type="button" class="btn btn--ghost btn--sm" id="exportBtn">⬇ Exporter (.json)</button>
+            <label class="btn btn--ghost btn--sm" style="cursor:pointer">⬆ Importer
+              <input type="file" id="importInput" accept="application/json" hidden>
+            </label>
+          </div>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="admin-preview">
+          <div class="admin-panel">
+            <span class="eyebrow" style="margin-bottom:.6rem">Aperçu en direct</span>
+            <div id="preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-footer></div>
+  <script src="assets/js/blog.js"></script>
+  <script src="assets/js/main.js"></script>
+  <script>
+  (function () {
+    var B = window.Blog;
+    var $ = function (id) { return document.getElementById(id); };
+    var fields = ["title", "category", "author", "date", "cover", "excerpt", "body"];
+
+    // default date = today
+    if (!$("date").value) $("date").value = new Date().toISOString().slice(0, 10);
+
+    function currentData() {
+      return {
+        slug: $("editingSlug").value || B.slugify($("title").value),
+        title: $("title").value.trim(),
+        category: $("category").value.trim() || "Article",
+        author: $("author").value.trim() || "Anne-Sophie",
+        date: $("date").value || new Date().toISOString().slice(0, 10),
+        cover: $("cover").value.trim(),
+        excerpt: $("excerpt").value.trim(),
+        body: $("body").value,
+      };
+    }
+
+    function renderPreview() {
+      var d = currentData();
+      var cover = d.cover
+        ? '<img class="article__cover" style="aspect-ratio:16/9;margin-bottom:1.2rem" src="' + B.esc(d.cover) + '" alt="">'
+        : '<div style="aspect-ratio:16/9;background:var(--sage-100);border-radius:var(--radius);display:grid;place-items:center;color:var(--sage-500);margin-bottom:1.2rem">Image de couverture</div>';
+      $("preview").innerHTML =
+        '<span class="tag">' + B.esc(d.category) + "</span>" +
+        '<h1 style="font-size:2rem;margin:.3rem 0 .5rem">' + (B.esc(d.title) || "Titre de l’article") + "</h1>" +
+        '<p class="muted" style="font-size:.85rem">' + B.esc(d.author) + " · " + B.fmtDate(d.date) + "</p>" +
+        cover +
+        (d.excerpt ? '<p class="lead" style="font-size:1.05rem">' + B.esc(d.excerpt) + "</p>" : "") +
+        '<div class="article__body" style="font-size:1rem">' + B.markdown(d.body || "*Commencez à écrire pour voir l’aperçu…*") + "</div>";
+    }
+
+    fields.forEach(function (f) {
+      $(f).addEventListener("input", renderPreview);
+    });
+
+    function renderLocalList() {
+      var local = B.readStore();
+      $("localCount").textContent = "(" + local.length + ")";
+      if (!local.length) {
+        $("localList").innerHTML = '<li style="justify-content:center"><small>Aucun article publié depuis ce navigateur pour l’instant.</small></li>';
+        return;
+      }
+      $("localList").innerHTML = local.map(function (a) {
+        return '<li>' +
+          '<div><div class="title">' + B.esc(a.title) + '</div><small>' + B.esc(a.category) + " · " + B.fmtDate(a.date) + "</small></div>" +
+          '<div class="row-actions">' +
+          '<a class="icon-btn" href="article.html?slug=' + encodeURIComponent(a.slug) + '" title="Voir" target="_blank">↗</a>' +
+          '<button class="icon-btn" data-edit="' + B.esc(a.slug) + '" title="Modifier">✎</button>' +
+          '<button class="icon-btn danger" data-del="' + B.esc(a.slug) + '" title="Supprimer">🗑</button>' +
+          "</div></li>";
+      }).join("");
+    }
+
+    function loadIntoForm(a) {
+      $("editingSlug").value = a.slug;
+      $("title").value = a.title;
+      $("category").value = a.category;
+      $("author").value = a.author;
+      $("date").value = a.date;
+      $("cover").value = a.cover || "";
+      $("excerpt").value = a.excerpt || "";
+      $("body").value = a.body || "";
+      renderPreview();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function resetForm() {
+      $("editorForm").reset();
+      $("editingSlug").value = "";
+      $("author").value = "Anne-Sophie";
+      $("date").value = new Date().toISOString().slice(0, 10);
+      renderPreview();
+    }
+
+    $("editorForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var d = currentData();
+      if (!d.title || !d.body.trim()) {
+        window.SVS.toast("Un titre et un contenu sont nécessaires.");
+        return;
+      }
+      if (!d.excerpt) {
+        d.excerpt = d.body.replace(/[#*>`\-]/g, "").trim().slice(0, 150) + "…";
+      }
+      B.upsert(d);
+      resetForm();
+      renderLocalList();
+      window.SVS.toast("Article publié ✨ Il est en ligne sur le blog.");
+    });
+
+    $("resetBtn").addEventListener("click", resetForm);
+
+    $("localList").addEventListener("click", function (e) {
+      var edit = e.target.closest("[data-edit]");
+      var del = e.target.closest("[data-del]");
+      if (edit) {
+        var a = B.getBySlug(edit.getAttribute("data-edit"));
+        if (a) loadIntoForm(a);
+      }
+      if (del) {
+        var slug = del.getAttribute("data-del");
+        if (confirm("Supprimer définitivement cet article ?")) {
+          B.remove(slug);
+          renderLocalList();
+          window.SVS.toast("Article supprimé.");
+        }
+      }
+    });
+
+    $("exportBtn").addEventListener("click", function () {
+      var data = B.readStore();
+      if (!data.length) { window.SVS.toast("Aucun article à exporter."); return; }
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "sovibes-articles.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      window.SVS.toast("Export téléchargé.");
+    });
+
+    $("importInput").addEventListener("change", function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var arr = JSON.parse(reader.result);
+          if (!Array.isArray(arr)) throw new Error("format");
+          arr.forEach(function (a) {
+            if (a && a.title && a.body) {
+              a.slug = a.slug || B.slugify(a.title);
+              B.upsert(a);
+            }
+          });
+          renderLocalList();
+          window.SVS.toast("Articles importés ✨");
+        } catch (err) {
+          window.SVS.toast("Fichier invalide.");
+        }
+        e.target.value = "";
+      };
+      reader.readAsText(file);
+    });
+
+    renderPreview();
+    renderLocalList();
+  })();
+  </script>
+</body>
+</html>

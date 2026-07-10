@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact & rendez-vous — SoVibeS’tudio</title>
+  <meta name="description" content="Contactez Anne-Sophie Maquinghem — SoVibeS’tudio, Fouesnant. Rendez-vous soins énergétiques, cours, coaching et vidéothèque.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%236b8e7f'/%3E%3Ctext x='50' y='68' font-size='55' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <div data-header></div>
+
+  <section class="page-hero">
+    <div class="container">
+      <div class="breadcrumb"><a href="index.html">Accueil</a> / Contact</div>
+      <span class="eyebrow">On se rencontre&nbsp;?</span>
+      <h1>Prendre contact</h1>
+      <p class="lead">Une question, une envie de rendez-vous, un projet bien-être&nbsp;? Écrivez-moi, je vous réponds avec plaisir.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div class="reveal">
+        <h2>Envoyez-moi un message</h2>
+        <form class="form" id="contactForm" novalidate>
+          <div class="field">
+            <label for="name">Votre nom</label>
+            <input type="text" id="name" name="name" placeholder="Prénom Nom" required>
+          </div>
+          <div class="field">
+            <label for="email">Votre email</label>
+            <input type="email" id="email" name="email" placeholder="vous@exemple.fr" required>
+          </div>
+          <div class="field">
+            <label for="subject">Sujet</label>
+            <select id="subject" name="subject">
+              <option>Soin énergétique</option>
+              <option>Cours de yoga danse / yog’hiit</option>
+              <option>Abonnement vidéothèque</option>
+              <option>Coaching bien-être</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="message">Votre message</label>
+            <textarea id="message" name="message" placeholder="Dites-moi tout…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn--primary">Envoyer le message</button>
+          <p class="form-note">En envoyant ce formulaire, votre logiciel de messagerie s’ouvrira avec le message pré-rempli à destination de sovibesstudio@gmail.com.</p>
+        </form>
+      </div>
+
+      <div class="reveal">
+        <h2>Mes coordonnées</h2>
+        <ul class="info-list" style="margin-top:1.5rem">
+          <li><span class="ico">📍</span><div><b>Adresse</b><span>33 Hent Kerminalou<br>29170 Fouesnant, Bretagne</span></div></li>
+          <li><span class="ico">📞</span><div><b>Téléphone</b><a href="tel:+33677831045">06 77 83 10 45</a></div></li>
+          <li><span class="ico">✉️</span><div><b>Email</b><a href="mailto:sovibesstudio@gmail.com">sovibesstudio@gmail.com</a></div></li>
+          <li><span class="ico">🕒</span><div><b>Soins</b><span>Uniquement sur rendez-vous</span></div></li>
+        </ul>
+
+        <div class="badge-note" style="margin-top:2rem">
+          💡 Les soins énergétiques ont lieu à mon domicile à Fouesnant. L’adresse précise vous est communiquée à la confirmation du rendez-vous. Les soins à distance sont également possibles.
+        </div>
+
+        <div style="margin-top:1.5rem">
+          <h4 style="font-family:var(--font-sans);text-transform:uppercase;letter-spacing:.12em;font-size:.8rem;color:var(--ink-500)">Me suivre</h4>
+          <div class="socials" style="margin-top:.6rem">
+            <a href="https://www.instagram.com/vibes_studio/" target="_blank" rel="noopener" aria-label="Instagram" style="border-color:var(--sand-200);color:var(--sage-700)">◎</a>
+            <a href="https://www.facebook.com/sovibesstudio/" target="_blank" rel="noopener" aria-label="Facebook" style="border-color:var(--sand-200);color:var(--sage-700)">f</a>
+            <a href="https://www.youtube.com/@vibesstudio5668" target="_blank" rel="noopener" aria-label="YouTube" style="border-color:var(--sand-200);color:var(--sage-700)">▷</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-footer></div>
+  <script src="assets/js/main.js"></script>
+  <script>
+    document.getElementById("contactForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var f = e.target;
+      if (!f.name.value || !f.email.value || !f.message.value) {
+        window.SVS && window.SVS.toast("Merci de remplir tous les champs.");
+        return;
+      }
+      var body =
+        "Nom : " + f.name.value + "\n" +
+        "Email : " + f.email.value + "\n" +
+        "Sujet : " + f.subject.value + "\n\n" +
+        f.message.value;
+      var mailto = "mailto:sovibesstudio@gmail.com" +
+        "?subject=" + encodeURIComponent("[Site] " + f.subject.value + " — " + f.name.value) +
+        "&body=" + encodeURIComponent(body);
+      window.location.href = mailto;
+      window.SVS && window.SVS.toast("Votre message est prêt à être envoyé ✨");
+    });
+  </script>
+</body>
+</html>
