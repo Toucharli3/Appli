@@ -1,0 +1,953 @@
+<title>Coef de pêche — Fouesnant · Les Glénan</title>
+
+<style>
+/* ── Tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --ground:   #0A1C27;
+  --raised:   #102836;
+  --sunken:   #071620;
+  --line:     #1D3D4E;
+  --ink:      #CFE0E6;
+  --ink-dim:  #6D8B9A;
+  --ink-faint:#47616F;
+  --accent:   #45D6C4;
+  --accent-d: #2FA79A;
+  --amber:    #E9A83C;
+  --coral:    #D9614F;
+  --shadow:   0 1px 2px rgba(0,0,0,.4);
+
+  --f-display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --f-body:    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --f-data:    ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Roboto Mono", monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground:   #EAF1F2;
+    --raised:   #FFFFFF;
+    --sunken:   #DDE8EA;
+    --line:     #C4D6DA;
+    --ink:      #0A1C27;
+    --ink-dim:  #4A6572;
+    --ink-faint:#7D949E;
+    --accent:   #0C8378;
+    --accent-d: #0A6B62;
+    --amber:    #9E6408;
+    --coral:    #B23F2E;
+    --shadow:   0 1px 2px rgba(10,28,39,.10);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0A1C27; --raised:#102836; --sunken:#071620; --line:#1D3D4E;
+  --ink:#CFE0E6; --ink-dim:#6D8B9A; --ink-faint:#47616F;
+  --accent:#45D6C4; --accent-d:#2FA79A; --amber:#E9A83C; --coral:#D9614F;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+:root[data-theme="light"] {
+  --ground:#EAF1F2; --raised:#FFFFFF; --sunken:#DDE8EA; --line:#C4D6DA;
+  --ink:#0A1C27; --ink-dim:#4A6572; --ink-faint:#7D949E;
+  --accent:#0C8378; --accent-d:#0A6B62; --amber:#9E6408; --coral:#B23F2E;
+  --shadow:0 1px 2px rgba(10,28,39,.10);
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0 1.15rem 3rem;
+}
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ── Bandeau ───────────────────────────────────────────────────────────── */
+.masthead {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--line);
+  margin: 0 -1.15rem 1.25rem;
+  padding: .7rem 1.15rem .6rem;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+}
+.masthead-place { font-family: var(--f-display); font-size: 1.05rem; letter-spacing: .01em; }
+.masthead-sub {
+  font-size: .68rem; color: var(--ink-dim); text-transform: uppercase;
+  letter-spacing: .13em; margin-top: .1rem;
+}
+.masthead-clock {
+  font-family: var(--f-data); font-size: 1.15rem; font-variant-numeric: tabular-nums;
+  color: var(--accent); letter-spacing: -.02em;
+}
+
+/* ── Éléments partagés ─────────────────────────────────────────────────── */
+.panel {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+.eyebrow {
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .15em;
+  color: var(--ink-dim); font-weight: 600;
+}
+.rule { height: 1px; background: var(--line); border: 0; margin: 0; }
+.stack   { display: flex; flex-direction: column; gap: 1.15rem; }
+.stack-s { display: flex; flex-direction: column; gap: .55rem; }
+.num { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+
+/* ── Verdict ───────────────────────────────────────────────────────────── */
+.verdict { display: flex; align-items: flex-start; gap: 1rem; }
+.verdict-score {
+  font-family: var(--f-data); font-size: 4.1rem; line-height: .84;
+  letter-spacing: -.055em; font-variant-numeric: tabular-nums;
+}
+.verdict-of { font-size: .8rem; color: var(--ink-faint); letter-spacing: 0; }
+.verdict-body { flex: 1; padding-top: .2rem; }
+.verdict-label { font-family: var(--f-display); font-size: 1.5rem; line-height: 1.1; }
+.verdict-note { font-size: .84rem; color: var(--ink-dim); margin-top: .3rem; }
+.verdict-when {
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--ink-faint); margin-bottom: .25rem;
+}
+
+/* ── Courbe ────────────────────────────────────────────────────────────── */
+.curve-holder { position: relative; margin: .3rem -.35rem 0; }
+#curve { display: block; width: 100%; height: 140px; }
+.curve-axis {
+  display: flex; justify-content: space-between;
+  font-family: var(--f-data); font-size: .62rem; color: var(--ink-faint);
+  padding: .15rem .35rem 0;
+}
+
+/* ── Ventilation du score ──────────────────────────────────────────────── */
+.factor { display: grid; grid-template-columns: 5.4rem 1fr 2.6rem; align-items: center; gap: .6rem; }
+.factor-name { font-size: .8rem; color: var(--ink-dim); }
+.factor-track { display: block; height: 5px; background: var(--sunken); border-radius: 3px; overflow: hidden; }
+.factor-fill  { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .5s ease; }
+.factor-val   { font-family: var(--f-data); font-size: .72rem; color: var(--ink-dim); text-align: right; }
+
+/* ── Fenêtres solunaires ───────────────────────────────────────────────── */
+.window-row {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: .7rem; padding: .55rem 0;
+}
+.window-row + .window-row { border-top: 1px solid var(--line); }
+.window-tag {
+  font-size: .58rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: .2rem .42rem; border-radius: 2px; border: 1px solid currentColor;
+}
+.window-tag.is-major { color: var(--accent); }
+.window-tag.is-minor { color: var(--ink-dim); }
+.window-time { font-family: var(--f-data); font-size: .92rem; }
+.window-cause { font-size: .72rem; color: var(--ink-faint); }
+.window-live {
+  font-size: .58rem; font-weight: 700; letter-spacing: .1em; color: var(--amber);
+  text-transform: uppercase; white-space: nowrap;
+}
+.window-row.is-live .window-time { color: var(--amber); }
+
+/* ── Marée ─────────────────────────────────────────────────────────────── */
+.tide-head { display: flex; align-items: baseline; gap: .7rem; }
+.tide-coef { font-family: var(--f-data); font-size: 2.7rem; line-height: 1; letter-spacing: -.045em; }
+.tide-scale { position: relative; height: 22px; margin-top: .75rem; }
+.tide-scale-track {
+  position: absolute; inset: 6px 0 auto; height: 5px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--ink-faint) 0%, var(--accent-d) 45%, var(--accent) 72%, var(--amber) 100%);
+}
+.tide-scale-pin {
+  position: absolute; top: 0; width: 2px; height: 17px;
+  background: var(--ink); border-radius: 1px; transform: translateX(-1px);
+  transition: left .5s ease;
+}
+.tide-scale-ends {
+  display: flex; justify-content: space-between;
+  font-family: var(--f-data); font-size: .6rem; color: var(--ink-faint); padding-top: 1.15rem;
+}
+.tide-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .4rem .9rem; }
+.tide-cell {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: .32rem 0; border-bottom: 1px solid var(--line);
+}
+.tide-cell-k { font-size: .72rem; color: var(--ink-dim); letter-spacing: .04em; }
+.tide-cell-v { font-family: var(--f-data); font-size: .95rem; }
+
+/* ── Lune / Soleil ─────────────────────────────────────────────────────── */
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.moon-head { display: flex; align-items: center; gap: .7rem; margin-bottom: .6rem; }
+.moon-name { font-size: .84rem; line-height: 1.25; }
+.moon-illum { font-family: var(--f-data); font-size: .7rem; color: var(--ink-dim); }
+.kv { display: flex; justify-content: space-between; align-items: baseline; padding: .28rem 0; }
+.kv + .kv { border-top: 1px solid var(--line); }
+.kv-k { font-size: .74rem; color: var(--ink-dim); }
+.kv-v { font-family: var(--f-data); font-size: .84rem; }
+
+/* ── Bandeau 14 jours ──────────────────────────────────────────────────── */
+.strip-scroll { overflow-x: auto; margin: 0 -1rem; padding: 0 1rem; scrollbar-width: none; }
+.strip-scroll::-webkit-scrollbar { display: none; }
+.strip { display: flex; gap: .3rem; min-width: max-content; padding-bottom: .2rem; }
+.day {
+  width: 2.55rem; flex: none; background: none; border: 0; padding: .4rem .1rem .3rem;
+  border-radius: 3px; cursor: pointer; color: inherit; font: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: .28rem;
+  border-top: 2px solid transparent; transition: background .18s;
+}
+.day:hover { background: var(--sunken); }
+.day.is-picked { background: var(--sunken); border-top-color: var(--accent); }
+.day-dow {
+  font-size: .6rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-dim);
+}
+.day.is-picked .day-dow { color: var(--accent); }
+.day-date { font-family: var(--f-data); font-size: .82rem; }
+.day-col { width: 100%; height: 46px; display: flex; align-items: flex-end; justify-content: center; }
+.day-bar { width: 7px; border-radius: 2px 2px 0 0; transition: height .45s ease; }
+.day-score { font-family: var(--f-data); font-size: .66rem; color: var(--ink-dim); }
+.day-today { font-size: .54rem; letter-spacing: .08em; color: var(--amber); text-transform: uppercase; }
+
+/* ── Espèces ───────────────────────────────────────────────────────────── */
+.species { display: flex; flex-direction: column; }
+.species-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: .8rem; padding: .45rem 0;
+}
+.species-row + .species-row { border-top: 1px solid var(--line); }
+.species-name { font-size: .87rem; }
+.species-verdict { font-size: .72rem; white-space: nowrap; }
+.species-where { font-size: .7rem; color: var(--ink-faint); display: block; margin-top: .05rem; }
+
+/* ── Notes ─────────────────────────────────────────────────────────────── */
+.note { font-size: .76rem; color: var(--ink-dim); line-height: 1.6; }
+.note strong { color: var(--ink); font-weight: 600; }
+.colophon {
+  font-size: .7rem; color: var(--ink-faint); line-height: 1.65;
+  border-top: 1px solid var(--line); padding-top: .9rem;
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <h1 class="masthead-place">Fouesnant · Les Glénan</h1>
+      <div class="masthead-sub">Finistère sud — 47,89° N 4,01° O</div>
+    </div>
+    <div class="masthead-clock num" id="clock">—</div>
+  </header>
+
+  <main class="stack">
+
+    <!-- Verdict -->
+    <section class="panel stack-s" aria-labelledby="verdict-h">
+      <div class="verdict-when" id="verdict-when">Maintenant</div>
+      <div class="verdict">
+        <div>
+          <div class="verdict-score" id="score">—</div>
+          <div class="verdict-of num">sur 100</div>
+        </div>
+        <div class="verdict-body">
+          <h2 class="verdict-label" id="verdict-h">—</h2>
+          <p class="verdict-note" id="verdict-note"></p>
+        </div>
+      </div>
+
+      <div class="curve-holder">
+        <canvas id="curve" aria-label="Courbe d'activité sur 24 heures"></canvas>
+      </div>
+      <div class="curve-axis" aria-hidden="true">
+        <span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span>
+      </div>
+    </section>
+
+    <!-- Indicateur quotidien -->
+    <section class="panel stack-s" aria-labelledby="strip-h">
+      <div>
+        <h2 class="eyebrow" id="strip-h">Indicateur quotidien — 14 jours</h2>
+        <p class="note" style="margin:.3rem 0 0">Potentiel maximal de chaque journée. Touchez un jour pour l'afficher.</p>
+      </div>
+      <div class="strip-scroll">
+        <div class="strip" id="strip" role="tablist"></div>
+      </div>
+    </section>
+
+    <!-- Ventilation -->
+    <section class="panel stack-s" aria-labelledby="factors-h">
+      <h2 class="eyebrow" id="factors-h">D'où vient la note</h2>
+      <div class="stack-s" id="factors"></div>
+      <p class="note" id="factors-note"></p>
+    </section>
+
+    <!-- Fenêtres solunaires -->
+    <section class="panel stack-s" aria-labelledby="win-h">
+      <div>
+        <h2 class="eyebrow" id="win-h">Créneaux solunaires</h2>
+        <p class="note" style="margin:.3rem 0 0">
+          Majeur : la Lune passe au méridien, au zénith ou au nadir. Mineur : elle se lève ou se couche.
+        </p>
+      </div>
+      <div id="windows"></div>
+    </section>
+
+    <!-- Marée -->
+    <section class="panel stack-s" aria-labelledby="tide-h">
+      <h2 class="eyebrow" id="tide-h">Marée</h2>
+      <div>
+        <div class="tide-head">
+          <div class="tide-coef" id="tide-coef">—</div>
+          <div>
+            <div id="tide-band" style="font-size:.95rem"></div>
+            <div class="note" id="tide-note" style="margin-top:.1rem"></div>
+          </div>
+        </div>
+        <div class="tide-scale">
+          <div class="tide-scale-track"></div>
+          <div class="tide-scale-pin" id="tide-pin" style="left:0%"></div>
+        </div>
+        <div class="tide-scale-ends"><span>20</span><span>70</span><span>120</span></div>
+      </div>
+      <hr class="rule">
+      <div class="tide-grid" id="tide-times"></div>
+      <p class="note">
+        Horaires <strong>estimés</strong> à partir du passage de la Lune au méridien et de
+        l'établissement du port (3 h 40 pour la baie de La Forêt) — comptez ± 30 min.
+        Pour naviguer, référez-vous à l'annuaire du SHOM.
+      </p>
+    </section>
+
+    <!-- Lune & Soleil -->
+    <div class="duo">
+      <section class="panel" aria-labelledby="moon-h">
+        <h2 class="eyebrow" id="moon-h" style="margin-bottom:.6rem">Lune</h2>
+        <div class="moon-head">
+          <svg width="38" height="38" viewBox="-21 -21 42 42" id="moon-glyph" aria-hidden="true">
+            <circle cx="0" cy="0" r="19" fill="var(--sunken)" stroke="var(--line)"></circle>
+            <path id="moon-lit" d="" fill="var(--ink)"></path>
+          </svg>
+          <div>
+            <div class="moon-name" id="moon-name">—</div>
+            <div class="moon-illum" id="moon-illum">—</div>
+          </div>
+        </div>
+        <div class="kv"><span class="kv-k">Lever</span><span class="kv-v" id="moon-rise">—</span></div>
+        <div class="kv"><span class="kv-k">Zénith</span><span class="kv-v" id="moon-zen">—</span></div>
+        <div class="kv"><span class="kv-k">Coucher</span><span class="kv-v" id="moon-set">—</span></div>
+      </section>
+
+      <section class="panel" aria-labelledby="sun-h">
+        <h2 class="eyebrow" id="sun-h" style="margin-bottom:.6rem">Soleil</h2>
+        <div class="moon-head">
+          <svg width="38" height="38" viewBox="-21 -21 42 42" aria-hidden="true">
+            <circle cx="0" cy="0" r="9" fill="none" stroke="var(--amber)" stroke-width="1.6"></circle>
+            <g stroke="var(--amber)" stroke-width="1.4" stroke-linecap="round" opacity=".75">
+              <line x1="0" y1="-14" x2="0" y2="-18"></line>
+              <line x1="0" y1="14" x2="0" y2="18"></line>
+              <line x1="-14" y1="0" x2="-18" y2="0"></line>
+              <line x1="14" y1="0" x2="18" y2="0"></line>
+              <line x1="-10" y1="-10" x2="-13" y2="-13"></line>
+              <line x1="10" y1="10" x2="13" y2="13"></line>
+              <line x1="-10" y1="10" x2="-13" y2="13"></line>
+              <line x1="10" y1="-10" x2="13" y2="-13"></line>
+            </g>
+          </svg>
+          <div>
+            <div class="moon-name" id="sun-len">—</div>
+            <div class="moon-illum">de jour</div>
+          </div>
+        </div>
+        <div class="kv"><span class="kv-k">Lever</span><span class="kv-v" id="sun-rise">—</span></div>
+        <div class="kv"><span class="kv-k">Midi</span><span class="kv-v" id="sun-noon">—</span></div>
+        <div class="kv"><span class="kv-k">Coucher</span><span class="kv-v" id="sun-set">—</span></div>
+      </section>
+    </div>
+
+    <!-- Espèces -->
+    <section class="panel stack-s" aria-labelledby="sp-h">
+      <div>
+        <h2 class="eyebrow" id="sp-h">Espèces du secteur</h2>
+        <p class="note" style="margin:.3rem 0 0">Évalué sur le coefficient et la saison du jour affiché.</p>
+      </div>
+      <div class="species" id="species"></div>
+    </section>
+
+    <!-- Postes -->
+    <section class="panel stack-s" aria-labelledby="spots-h">
+      <h2 class="eyebrow" id="spots-h">Postes autour de Fouesnant</h2>
+      <div class="stack-s" id="spots"></div>
+    </section>
+
+    <section class="colophon">
+      <p style="margin:0 0 .6rem">
+        Positions du Soleil et de la Lune calculées selon Jean Meeus,
+        <em>Astronomical Algorithms</em>. Coefficient de marée reconstruit à partir des
+        composantes harmoniques M2, S2 et N2 de Brest, rapporté à la vive-eau moyenne
+        d'équinoxe — comptez ± 5 par rapport à la valeur officielle du SHOM.
+      </p>
+      <p style="margin:0 0 .6rem">
+        La théorie solunaire de John Alden Knight (1926) est une aide à la décision, pas une
+        garantie. Elle ignore le vent, la pression et la turbidité, qui pèsent au moins autant
+        sur une sortie. Tout est calculé sur l'appareil : la page fonctionne hors ligne.
+      </p>
+      <p style="margin:0" id="colophon-tz"></p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ═══ Astronomie — Meeus / SunCalc ═════════════════════════════════════ */
+const PI = Math.PI, RAD = PI / 180, DEG = 180 / PI;
+const J1970 = 2440588, J2000 = 2451545, DAY = 86400000;
+const OBL = RAD * 23.4397;
+
+const toJD   = d => d.getTime() / DAY - 0.5 + J1970;
+const fromJD = j => new Date((j + 0.5 - J1970) * DAY);
+const toDays = d => toJD(d) - J2000;
+
+const rightAsc = (l, b) => Math.atan2(Math.sin(l) * Math.cos(OBL) - Math.tan(b) * Math.sin(OBL), Math.cos(l));
+const decl     = (l, b) => Math.asin(Math.sin(b) * Math.cos(OBL) + Math.cos(b) * Math.sin(OBL) * Math.sin(l));
+const sidereal = (d, lw) => RAD * (280.16 + 360.9856235 * d) - lw;
+
+const solarMeanAnomaly = d => RAD * (357.5291 + 0.98560028 * d);
+const eclipticLong = M =>
+  M + RAD * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)) + RAD * 102.9372 + PI;
+
+function sunCoords(d) {
+  const M = solarMeanAnomaly(d), L = eclipticLong(M);
+  return { dec: decl(L, 0), ra: rightAsc(L, 0), L, M };
+}
+
+const J0 = 0.0009;
+const julianCycle   = (d, lw) => Math.round(d - J0 - lw / (2 * PI));
+const approxTransit = (Ht, lw, n) => J0 + (Ht + lw) / (2 * PI) + n;
+const solarTransitJ = (ds, M, L) => J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+
+function sunTimes(date, lat, lng) {
+  const lw = RAD * -lng, phi = RAD * lat, d = toDays(date);
+  const n = julianCycle(d, lw), ds = approxTransit(0, lw, n);
+  const M = solarMeanAnomaly(ds), L = eclipticLong(M), dec = decl(L, 0);
+  const Jnoon = solarTransitJ(ds, M, L);
+  const h0 = RAD * -0.833;
+  const cosH = (Math.sin(h0) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec));
+  if (cosH > 1 || cosH < -1) return { sunrise: null, sunset: null, noon: fromJD(Jnoon) };
+  const w = Math.acos(cosH);
+  const Jset = solarTransitJ(approxTransit(w, lw, n), M, L);
+  return { sunrise: fromJD(Jnoon - (Jset - Jnoon)), sunset: fromJD(Jset), noon: fromJD(Jnoon) };
+}
+
+function moonCoords(d) {
+  const L = RAD * (218.316 + 13.176396 * d);
+  const M = RAD * (134.963 + 13.064993 * d);
+  const F = RAD * (93.272 + 13.229350 * d);
+  const l = L + RAD * 6.289 * Math.sin(M);
+  const b = RAD * 5.128 * Math.sin(F);
+  return { ra: rightAsc(l, b), dec: decl(l, b), dist: 385001 - 20905 * Math.cos(M), lambda: l, M };
+}
+
+function moonAltitude(date, lat, lng) {
+  const d = toDays(date), lw = RAD * -lng, phi = RAD * lat, c = moonCoords(d);
+  const H = sidereal(d, lw) - c.ra;
+  const h = Math.asin(Math.sin(phi) * Math.sin(c.dec) + Math.cos(phi) * Math.cos(c.dec) * Math.cos(H));
+  return h + RAD * 0.017 / Math.tan(h + RAD * 10.26 / (h * DEG + 5.10));
+}
+
+function moonIllumination(date) {
+  const d = toDays(date), s = sunCoords(d), m = moonCoords(d), sdist = 149598000;
+  const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) +
+    Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra));
+  const inc = Math.atan2(sdist * Math.sin(phi), m.dist - sdist * Math.cos(phi));
+  const angle = Math.atan2(
+    Math.cos(s.dec) * Math.sin(s.ra - m.ra),
+    Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.ra - m.ra));
+  return { fraction: (1 + Math.cos(inc)) / 2, phase: 0.5 + 0.5 * inc * (angle < 0 ? -1 : 1) / PI };
+}
+
+const norm = a => { a %= 2 * PI; if (a > PI) a -= 2 * PI; if (a < -PI) a += 2 * PI; return a; };
+const moonHourAngle = (date, lng) => norm(sidereal(toDays(date), RAD * -lng) - moonCoords(toDays(date)).ra);
+
+function moonTransits(from, hours, lng, kind) {
+  const off = kind === "upper" ? 0 : PI, step = 300000, out = [];
+  let prevT = from.getTime(), prevV = norm(moonHourAngle(new Date(prevT), lng) - off);
+  const end = from.getTime() + hours * 3600000;
+  for (let t = prevT + step; t <= end; t += step) {
+    const v = norm(moonHourAngle(new Date(t), lng) - off);
+    if (prevV < 0 && v >= 0 && v - prevV < PI)
+      out.push(new Date(prevT + (t - prevT) * (-prevV / (v - prevV))));
+    prevT = t; prevV = v;
+  }
+  return out;
+}
+
+function moonRiseSet(date, lat, lng) {
+  const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
+  const hc = RAD * 0.133;
+  let rise = null, set = null;
+  let prevT = s0.getTime(), prevH = moonAltitude(new Date(prevT), lat, lng) - hc;
+  for (let t = prevT + 300000; t <= s0.getTime() + DAY; t += 300000) {
+    const h = moonAltitude(new Date(t), lat, lng) - hc;
+    if (prevH < 0 && h >= 0 && !rise) rise = new Date(prevT + (t - prevT) * (-prevH / (h - prevH)));
+    if (prevH >= 0 && h < 0 && !set)  set  = new Date(prevT + (t - prevT) * (prevH / (prevH - h)));
+    prevT = t; prevH = h;
+  }
+  return { rise, set };
+}
+
+/* ═══ Marée ════════════════════════════════════════════════════════════ */
+const M2 = 2.03, S2 = 0.72, N2 = 0.62;
+
+function tideCoefficient(date) {
+  const d = toDays(date), m = moonCoords(d), s = sunCoords(d);
+  const D = m.lambda - s.L;
+  const S2e = S2 * (1 + 0.15 * Math.cos(2 * s.L));
+  const amp = M2 + S2e * Math.cos(2 * D) + N2 * Math.cos(m.M);
+  return Math.max(20, Math.min(120, Math.round(100 * amp / (M2 + S2))));
+}
+
+function tideBand(c) {
+  if (c >= 100) return { label: "Grande vive-eau", note: "Courants puissants, brassage maximal." };
+  if (c >= 70)  return { label: "Vive-eau", note: "Bons courants, poisson en chasse sur les pointes." };
+  if (c >= 45)  return { label: "Marée moyenne", note: "Courants modérés, conditions passe-partout." };
+  return { label: "Morte-eau", note: "Peu de courant. Privilégiez les fonds et les épaves." };
+}
+
+const LUNITIDAL = (3 * 60 + 40) * 60000;
+const SEMI_TIDE = 6 * 3600000 + 12.5 * 60000;
+
+function tideTimes(date, lng) {
+  const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
+  const from = new Date(s0.getTime() - 14 * 3600000);
+  const tr = [...moonTransits(from, 52, lng, "upper"), ...moonTransits(from, 52, lng, "lower")];
+  const ev = [];
+  for (const t of tr) {
+    const hw = new Date(t.getTime() + LUNITIDAL);
+    ev.push({ type: "PM", time: hw });
+    ev.push({ type: "BM", time: new Date(hw.getTime() + SEMI_TIDE) });
+  }
+  const end = s0.getTime() + DAY;
+  return ev.filter(e => +e.time >= +s0 && +e.time < end).sort((a, b) => a.time - b.time);
+}
+
+/* ═══ Solunaire & score ════════════════════════════════════════════════ */
+const MAJOR_MS = 3600000, MINOR_MS = 2700000;
+const bell = (now, c, half) => { const d = Math.abs(now - c); return d > half ? 0 : (1 + Math.cos(PI * d / half)) / 2; };
+
+function solunarWindows(date, lat, lng) {
+  const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
+  const w = [];
+  const from = new Date(+s0 - 3600000);
+  for (const t of moonTransits(from, 26, lng, "upper"))
+    w.push({ type: "major", center: t, half: MAJOR_MS, cause: "Lune au zénith" });
+  for (const t of moonTransits(from, 26, lng, "lower"))
+    w.push({ type: "major", center: t, half: MAJOR_MS, cause: "Lune au nadir" });
+  const rs = moonRiseSet(date, lat, lng);
+  if (rs.rise) w.push({ type: "minor", center: rs.rise, half: MINOR_MS, cause: "Lever de lune" });
+  if (rs.set)  w.push({ type: "minor", center: rs.set,  half: MINOR_MS, cause: "Coucher de lune" });
+  return w
+    .map(x => ({ ...x, start: new Date(+x.center - x.half), end: new Date(+x.center + x.half) }))
+    .filter(x => x.end >= s0 && x.start < new Date(+s0 + DAY))
+    .sort((a, b) => a.start - b.start);
+}
+
+const WEIGHTS = { solunar: 50, moon: 20, tide: 20, light: 10 };
+const lunarStrength = p => 0.42 + 0.58 * Math.pow(Math.abs(Math.cos(p * 2 * PI)), 0.7);
+
+function scoreAt(date, ctx) {
+  const t = date.getTime();
+  let sol = 0;
+  for (const w of ctx.windows) {
+    const f = bell(t, +w.center, w.half * 1.5) * (w.type === "major" ? 1 : 0.64);
+    if (f > sol) sol = f;
+  }
+  sol *= lunarStrength(ctx.phase);
+  const moon = Math.pow(Math.abs(Math.cos(ctx.phase * 2 * PI)), 0.5);
+  const tide = Math.max(0, Math.min(1, (ctx.coef - 30) / 70));
+  let light = 0;
+  if (ctx.sun.sunrise) light = Math.max(light, bell(t, +ctx.sun.sunrise, 5400000));
+  if (ctx.sun.sunset)  light = Math.max(light, bell(t, +ctx.sun.sunset,  5400000));
+  const parts = {
+    solunar: sol * WEIGHTS.solunar, moon: moon * WEIGHTS.moon,
+    tide: tide * WEIGHTS.tide, light: light * WEIGHTS.light,
+  };
+  return {
+    total: Math.max(0, Math.min(100, Math.round(parts.solunar + parts.moon + parts.tide + parts.light))),
+    parts,
+  };
+}
+
+function dayContext(date, lat, lng) {
+  return {
+    windows: solunarWindows(date, lat, lng),
+    phase: moonIllumination(date).phase,
+    illum: moonIllumination(date).fraction,
+    coef: tideCoefficient(date),
+    sun: sunTimes(date, lat, lng),
+    moon: moonRiseSet(date, lat, lng),
+  };
+}
+
+function dayCurve(date, ctx, stepMin) {
+  const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
+  const n = Math.round(1440 / stepMin), out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = new Date(+s0 + i * stepMin * 60000);
+    out.push({ t, v: scoreAt(t, ctx).total });
+  }
+  return out;
+}
+
+function rating(v) {
+  if (v >= 84) return "Excellent";
+  if (v >= 71) return "Très bon";
+  if (v >= 55) return "Bon";
+  if (v >= 38) return "Moyen";
+  return "Faible";
+}
+
+function ratingColor(v) {
+  const s = getComputedStyle(document.documentElement);
+  if (v >= 71) return s.getPropertyValue("--accent").trim();
+  if (v >= 55) return s.getPropertyValue("--accent-d").trim();
+  if (v >= 38) return s.getPropertyValue("--amber").trim();
+  return s.getPropertyValue("--coral").trim();
+}
+
+/* ═══ Lieu ═════════════════════════════════════════════════════════════ */
+const LAT = 47.8917, LNG = -4.0064;
+
+/* ═══ Format ═══════════════════════════════════════════════════════════ */
+const hm = d => d ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—";
+const DOW = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+const MONTH = ["janvier","février","mars","avril","mai","juin",
+               "juillet","août","septembre","octobre","novembre","décembre"];
+const sameDay = (a, b) => a.toDateString() === b.toDateString();
+
+const PHASE_NAMES = [
+  [0.0625, "Nouvelle Lune"], [0.1875, "Premier croissant"], [0.3125, "Premier quartier"],
+  [0.4375, "Gibbeuse croissante"], [0.5625, "Pleine Lune"], [0.6875, "Gibbeuse décroissante"],
+  [0.8125, "Dernier quartier"], [0.9375, "Dernier croissant"],
+];
+const phaseName = p => (PHASE_NAMES.find(([lim]) => p < lim) || [0, "Nouvelle Lune"])[1];
+
+/** Limbe + terminateur : le terminateur est une demi-ellipse de demi-axe |cos(2πφ)|·r. */
+function moonPath(phase, r) {
+  const c = Math.cos(2 * PI * phase);
+  const waxing = phase < 0.5;
+  const kx = (waxing ? c : -c) * r;
+  const limbSweep = waxing ? 1 : 0;
+  const termSweep = kx > 0 ? 0 : 1;
+  return `M 0 ${-r} A ${r} ${r} 0 0 ${limbSweep} 0 ${r} A ${Math.abs(kx).toFixed(3)} ${r} 0 0 ${termSweep} 0 ${-r} Z`;
+}
+
+/* ═══ État ═════════════════════════════════════════════════════════════ */
+const cache = new Map();
+function summaryFor(date) {
+  const key = date.toDateString();
+  if (cache.has(key)) return cache.get(key);
+  const ctx = dayContext(date, LAT, LNG);
+  const curve = dayCurve(date, ctx, 15);
+  let peak = curve[0];
+  for (const p of curve) if (p.v > peak.v) peak = p;
+  const s = { date: new Date(date), ctx, peak: peak.v, peakAt: peak.t };
+  cache.set(key, s);
+  return s;
+}
+
+let picked = 0;          // décalage en jours par rapport à aujourd'hui
+let drawProgress = 1;    // animation de tracé
+
+const el = id => document.getElementById(id);
+const dayAt = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
+
+/* ═══ Courbe ═══════════════════════════════════════════════════════════ */
+function drawCurve(ctx, pts, now) {
+  const cv = el("curve"), g = cv.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+
+  const cs = getComputedStyle(document.documentElement);
+  const accent = cs.getPropertyValue("--accent").trim();
+  const amber  = cs.getPropertyValue("--amber").trim();
+  const line   = cs.getPropertyValue("--line").trim();
+  const faint  = cs.getPropertyValue("--ink-faint").trim();
+  const sunken = cs.getPropertyValue("--sunken").trim();
+
+  const s0 = new Date(pts[0].t); s0.setHours(0, 0, 0, 0);
+  const span = DAY;
+  const padT = 12, padB = 16;
+  const x = t => ((t - +s0) / span) * W;
+  const y = v => padT + (1 - v / 100) * (H - padT - padB);
+
+  /* nuit */
+  g.fillStyle = sunken;
+  const sr = ctx.sun.sunrise, ss = ctx.sun.sunset;
+  if (sr) g.fillRect(0, 0, x(+sr), H - padB);
+  if (ss) g.fillRect(x(+ss), 0, W - x(+ss), H - padB);
+
+  /* fenêtres solunaires */
+  for (const w of ctx.windows) {
+    const a = Math.max(0, x(+w.start)), b = Math.min(W, x(+w.end));
+    if (b <= a) continue;
+    g.fillStyle = accent;
+    g.globalAlpha = w.type === "major" ? 0.16 : 0.08;
+    g.fillRect(a, 0, b - a, H - padB);
+    g.globalAlpha = 1;
+  }
+
+  /* grille horaire */
+  g.strokeStyle = line; g.lineWidth = 1;
+  for (let h = 0; h <= 24; h += 6) {
+    const px = Math.round(x(+s0 + h * 3600000)) + 0.5;
+    g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H - padB); g.stroke();
+  }
+  g.beginPath(); g.moveTo(0, H - padB + 0.5); g.lineTo(W, H - padB + 0.5); g.stroke();
+
+  /* aire + courbe */
+  const cut = Math.max(2, Math.floor(pts.length * drawProgress));
+  const shown = pts.slice(0, cut);
+  g.beginPath();
+  shown.forEach((p, i) => i ? g.lineTo(x(+p.t), y(p.v)) : g.moveTo(x(+p.t), y(p.v)));
+  const grad = g.createLinearGradient(0, padT, 0, H - padB);
+  grad.addColorStop(0, accent + "55");
+  grad.addColorStop(1, accent + "05");
+  g.lineTo(x(+shown[shown.length - 1].t), H - padB);
+  g.lineTo(x(+shown[0].t), H - padB);
+  g.closePath(); g.fillStyle = grad; g.fill();
+
+  g.beginPath();
+  shown.forEach((p, i) => i ? g.lineTo(x(+p.t), y(p.v)) : g.moveTo(x(+p.t), y(p.v)));
+  g.strokeStyle = accent; g.lineWidth = 2; g.lineJoin = "round"; g.stroke();
+
+  /* lever / coucher du soleil */
+  g.strokeStyle = faint; g.lineWidth = 1; g.setLineDash([2, 3]);
+  for (const t of [sr, ss]) {
+    if (!t) continue;
+    const px = Math.round(x(+t)) + 0.5;
+    g.beginPath(); g.moveTo(px, padT); g.lineTo(px, H - padB); g.stroke();
+  }
+  g.setLineDash([]);
+
+  /* instant présent */
+  if (now && drawProgress >= 1) {
+    const px = x(+now);
+    if (px >= 0 && px <= W) {
+      g.strokeStyle = amber; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H - padB); g.stroke();
+      const v = scoreAt(now, ctx).total;
+      g.fillStyle = amber;
+      g.beginPath(); g.arc(px, y(v), 3.5, 0, 2 * PI); g.fill();
+    }
+  }
+}
+
+/* ═══ Rendu ════════════════════════════════════════════════════════════ */
+/* Les notes utiles s'étalent de ~30 à ~95 : on étire cette plage sur toute la
+   hauteur de colonne pour que les écarts entre jours restent lisibles.
+   Le chiffre imprimé sous chaque barre reste la valeur de référence. */
+const barHeight = v => Math.max(8, Math.min(100, ((v - 30) / 65) * 100));
+
+function renderStrip() {
+  const today = new Date();
+  const host = el("strip");
+  host.textContent = "";
+  for (let i = 0; i < 14; i++) {
+    const s = summaryFor(dayAt(i));
+    const b = document.createElement("button");
+    b.className = "day" + (i === picked ? " is-picked" : "");
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", i === picked ? "true" : "false");
+    b.setAttribute("aria-label",
+      `${s.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} — ${s.peak} sur 100, ${rating(s.peak)}`);
+    b.innerHTML =
+      `<span class="day-dow">${DOW[s.date.getDay()]}</span>` +
+      `<span class="day-date">${String(s.date.getDate()).padStart(2, "0")}</span>` +
+      `<span class="day-col"><span class="day-bar" style="height:${barHeight(s.peak)}%;background:${ratingColor(s.peak)}"></span></span>` +
+      `<span class="day-score">${s.peak}</span>` +
+      `<span class="day-today">${sameDay(s.date, today) ? "auj." : ""}</span>`;
+    b.addEventListener("click", () => { picked = i; drawProgress = 0; animate(); render(); });
+    host.appendChild(b);
+  }
+}
+
+function renderFactors(parts) {
+  const rows = [
+    ["Solunaire", parts.solunar, WEIGHTS.solunar],
+    ["Lune",      parts.moon,    WEIGHTS.moon],
+    ["Marée",     parts.tide,    WEIGHTS.tide],
+    ["Lumière",   parts.light,   WEIGHTS.light],
+  ];
+  el("factors").innerHTML = rows.map(([name, got, max]) =>
+    `<div class="factor">
+       <span class="factor-name">${name}</span>
+       <span class="factor-track"><span class="factor-fill" style="width:${(got / max) * 100}%"></span></span>
+       <span class="factor-val">${got.toFixed(0)}/${max}</span>
+     </div>`).join("");
+}
+
+const SPECIES = [
+  { name: "Bar (loup)", where: "Pointes, courants, Cap Coz",
+    ok: (c, m) => c >= 70 ? 2 : c >= 50 ? 1 : 0,
+    season: m => m >= 3 && m <= 10 },
+  { name: "Lieu jaune", where: "Tombants et épaves des Glénan",
+    ok: c => c >= 60 ? 2 : 1, season: m => m >= 2 && m <= 11 },
+  { name: "Maquereau", where: "Surface, au large de Beg-Meil",
+    ok: () => 2, season: m => m >= 5 && m <= 9 },
+  { name: "Dorade royale", where: "Sable, baie de La Forêt",
+    ok: c => c >= 60 ? 2 : c >= 45 ? 1 : 0, season: m => m >= 5 && m <= 9 },
+  { name: "Vieille", where: "Roches de Mousterlin",
+    ok: () => 1, season: m => m >= 3 && m <= 11 },
+  { name: "Seiche", where: "Herbiers de zostères, Glénan",
+    ok: c => c >= 50 ? 2 : 1, season: m => m <= 5 || m >= 9 },
+  { name: "Congre", where: "Épaves, de nuit",
+    ok: c => c >= 85 ? 2 : c >= 60 ? 1 : 0, season: () => true },
+];
+
+function renderSpecies(coef, month) {
+  const mark = ["✕ hors période", "◦ possible", "● favorable"];
+  const tone = ["var(--ink-faint)", "var(--ink-dim)", "var(--accent)"];
+  el("species").innerHTML = SPECIES.map(s => {
+    const lvl = s.season(month) ? s.ok(coef, month) : 0;
+    return `<div class="species-row">
+      <span class="species-name">${s.name}<span class="species-where">${s.where}</span></span>
+      <span class="species-verdict" style="color:${tone[lvl]}">${mark[lvl]}</span>
+    </div>`;
+  }).join("");
+}
+
+const SPOTS = [
+  ["Cap Coz", "Flèche sableuse, courant de jusant sur la pointe. Bar au lancer à l'aube."],
+  ["Beg-Meil", "Roches et herbiers. Accessible à pied, bon aux coefficients moyens."],
+  ["Pointe de Mousterlin", "Estran rocheux étendu. Pêche à pied à basse mer de vive-eau."],
+  ["Baie de La Forêt", "Fonds sablo-vaseux abrités. Dorade royale en été."],
+  ["Archipel des Glénan", "Saint-Nicolas, Penfret, Drénec. Bateau requis. Le plus grand herbier de Bretagne."],
+  ["Les Moutons", "Îlot isolé, tombants profonds. Lieu jaune et congre."],
+];
+
+function renderSpots() {
+  el("spots").innerHTML = SPOTS.map(([n, d]) =>
+    `<div><div style="font-size:.87rem">${n}</div><div class="note">${d}</div></div>`).join("");
+}
+
+function render() {
+  const now = new Date();
+  el("clock").textContent = hm(now);
+
+  const s = summaryFor(dayAt(picked));
+  const ctx = s.ctx;
+  const isToday = picked === 0;
+  const at = isToday ? now : s.peakAt;
+  const sc = scoreAt(at, ctx);
+  const shown = isToday ? sc.total : s.peak;
+
+  /* verdict */
+  el("verdict-when").textContent = isToday
+    ? "Maintenant"
+    : `${s.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} ${MONTH[s.date.getMonth()]} — au pic`;
+  el("score").textContent = shown;
+  el("score").style.color = ratingColor(shown);
+  el("verdict-h").textContent = rating(shown);
+
+  const live = ctx.windows.find(w => at >= w.start && at <= w.end);
+  el("verdict-note").textContent = isToday
+    ? (live
+        ? `Créneau ${live.type === "major" ? "majeur" : "mineur"} en cours — ${live.cause.toLowerCase()}. Meilleur moment du jour à ${hm(s.peakAt)} (${s.peak}).`
+        : `Meilleur moment de la journée à ${hm(s.peakAt)}, avec ${s.peak} sur 100.`)
+    : `Pic à ${hm(s.peakAt)}. Coefficient de marée ${ctx.coef}, ${phaseName(ctx.phase).toLowerCase()}.`;
+
+  /* courbe */
+  drawCurve(ctx, dayCurve(s.date, ctx, 10), isToday ? now : null);
+
+  /* ventilation */
+  renderFactors(isToday ? sc.parts : scoreAt(s.peakAt, ctx).parts);
+  const dom = Object.entries(isToday ? sc.parts : scoreAt(s.peakAt, ctx).parts)
+    .sort((a, b) => b[1] - a[1])[0][0];
+  const domLabel = { solunar: "la position de la Lune", moon: "la phase lunaire",
+                     tide: "le coefficient de marée", light: "la lumière rasante" }[dom];
+  el("factors-note").textContent = `Facteur dominant : ${domLabel}. Les quatre termes sont indépendants et plafonnés, la note est leur somme.`;
+
+  /* créneaux */
+  el("windows").innerHTML = ctx.windows.map(w => {
+    const on = isToday && now >= w.start && now <= w.end;
+    return `<div class="window-row${on ? " is-live" : ""}">
+      <span class="window-tag ${w.type === "major" ? "is-major" : "is-minor"}">${w.type === "major" ? "majeur" : "mineur"}</span>
+      <span><span class="window-time">${hm(w.start)} – ${hm(w.end)}</span>
+        <span class="window-cause" style="display:block">${w.cause}</span></span>
+      <span class="window-live">${on ? "en cours" : ""}</span>
+    </div>`;
+  }).join("");
+
+  /* marée */
+  const band = tideBand(ctx.coef);
+  el("tide-coef").textContent = ctx.coef;
+  el("tide-coef").style.color = ratingColor(Math.min(100, (ctx.coef - 20) / 100 * 90 + 10));
+  el("tide-band").textContent = band.label;
+  el("tide-note").textContent = band.note;
+  el("tide-pin").style.left = `${((ctx.coef - 20) / 100) * 100}%`;
+  el("tide-times").innerHTML = tideTimes(s.date, LNG).map(e =>
+    `<div class="tide-cell"><span class="tide-cell-k">${e.type === "PM" ? "Pleine mer" : "Basse mer"}</span>
+     <span class="tide-cell-v">${hm(e.time)}</span></div>`).join("");
+
+  /* lune */
+  el("moon-lit").setAttribute("d", moonPath(ctx.phase, 19));
+  el("moon-name").textContent = phaseName(ctx.phase);
+  el("moon-illum").textContent = `${Math.round(ctx.illum * 100)} % éclairée`;
+  el("moon-rise").textContent = hm(ctx.moon.rise);
+  el("moon-set").textContent  = hm(ctx.moon.set);
+  const zen = ctx.windows.find(w => w.cause === "Lune au zénith");
+  el("moon-zen").textContent = zen ? hm(zen.center) : "—";
+
+  /* soleil */
+  el("sun-rise").textContent = hm(ctx.sun.sunrise);
+  el("sun-noon").textContent = hm(ctx.sun.noon);
+  el("sun-set").textContent  = hm(ctx.sun.sunset);
+  if (ctx.sun.sunrise && ctx.sun.sunset) {
+    const mins = Math.round((ctx.sun.sunset - ctx.sun.sunrise) / 60000);
+    el("sun-len").textContent = `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, "0")}`;
+  }
+
+  renderSpecies(ctx.coef, s.date.getMonth() + 1);
+  renderStrip();
+}
+
+/* ═══ Animation d'entrée ═══════════════════════════════════════════════ */
+function animate() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { drawProgress = 1; return; }
+  const t0 = performance.now(), dur = 620;
+  function step(t) {
+    const k = Math.min(1, (t - t0) / dur);
+    drawProgress = 1 - Math.pow(1 - k, 3);
+    const s = summaryFor(dayAt(picked));
+    drawCurve(s.ctx, dayCurve(s.date, s.ctx, 10), picked === 0 ? new Date() : null);
+    if (k < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ═══ Démarrage ════════════════════════════════════════════════════════ */
+renderSpots();
+el("colophon-tz").textContent =
+  `Heures affichées dans le fuseau de votre appareil (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`;
+drawProgress = 0;
+render();
+animate();
+
+setInterval(() => { if (picked === 0) render(); }, 60000);
+
+let rt;
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
