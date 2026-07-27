@@ -51,6 +51,9 @@
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
+/* Les règles d'affichage de la page l'emportent sinon sur l'attribut hidden,
+   dont la déclaration native est de priorité plus faible. */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--ground);
@@ -176,6 +179,11 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .ctl input[type="range"]::-moz-range-thumb {
   width: 15px; height: 15px; background: var(--accent);
   border-radius: 50%; border: 0; cursor: pointer;
+}
+.link-btn {
+  align-self: flex-start; background: none; border: 0; padding: .15rem 0;
+  font: inherit; font-size: .76rem; color: var(--accent); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
 }
 .ctl select {
   width: 100%; font: inherit; font-size: .8rem; color: var(--ink);
@@ -357,6 +365,7 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
           <span class="ctl-val" id="out-period">8 s</span>
         </div>
       </div>
+      <button type="button" class="link-btn" id="sea-toggle" hidden>Ajuster à la main</button>
       <p class="note" id="sea-help"></p>
     </section>
 
@@ -833,6 +842,7 @@ const SEA_STORE = "glenan.sea.v1";
 let manualSea = { wind: 15, dir: 270, wave: 0.8, period: 8 };
 let liveSea = null;    // Map "AAAA-MM-JJTHH" -> {wind,dir,wave,period}
 let liveTide = null;   // [{type,time,h}] issus du niveau prévu, sinon null
+let overrideSea = false;  // l'utilisateur a repris la main sur la prévision
 
 try {
   const saved = JSON.parse(localStorage.getItem(SEA_STORE) || "null");
@@ -846,6 +856,9 @@ const hourKey = d =>
  *  manuelle pour aujourd'hui seulement — on n'extrapole pas une saisie
  *  d'aujourd'hui sur une date future. */
 function seaAt(when, isToday) {
+  /* Vos yeux l'emportent sur le modèle : si vous forcez des valeurs, elles
+     priment pour aujourd'hui. Les jours suivants restent sur la prévision. */
+  if (overrideSea && isToday) return manualSea;
   if (liveSea) {
     const v = liveSea.get(hourKey(when));
     if (v) return v;
@@ -1112,11 +1125,15 @@ function renderFactors(parts, fish) {
 }
 
 function renderSea(fish, sea, isToday) {
+  const hasLive = !!liveSea;
   const src = el("sea-src");
-  src.textContent = liveSea ? "prévision automatique" : "saisie manuelle";
-  src.classList.toggle("is-live", !!liveSea);
+  src.textContent = overrideSea ? "valeurs forcées" : hasLive ? "prévision automatique" : "saisie manuelle";
+  src.classList.toggle("is-live", hasLive && !overrideSea);
 
-  el("sea-controls").hidden = !!liveSea;
+  el("sea-controls").hidden = hasLive && !overrideSea;
+  const toggle = el("sea-toggle");
+  toggle.hidden = !hasLive;
+  toggle.textContent = overrideSea ? "Revenir à la prévision" : "Ajuster à la main";
 
   if (!fish) {
     el("sea-state").textContent = "Inconnu";
@@ -1141,11 +1158,13 @@ function renderSea(fish, sea, isToday) {
        se justifie pas.</div>`
     : "";
 
-  el("sea-help").textContent = liveSea
-    ? "Prévision Open-Meteo pour Fouesnant et le large des Glénan, actualisée à l'ouverture."
-    : (isToday
-        ? "Relevez le vent et la houle sur votre application marine habituelle, puis reportez-les ici. Vos valeurs sont conservées sur cet appareil."
-        : "Ces réglages ne s'appliquent qu'à aujourd'hui.");
+  el("sea-help").textContent = overrideSea
+    ? "Vos valeurs remplacent la prévision pour aujourd'hui. Les jours suivants restent sur Open-Meteo."
+    : hasLive
+      ? "Prévision Open-Meteo pour Fouesnant et le large des Glénan, actualisée à l'ouverture."
+      : (isToday
+          ? "Relevez le vent et la houle sur votre application marine habituelle, puis reportez-les ici. Vos valeurs sont conservées sur cet appareil."
+          : "Ces réglages ne s'appliquent qu'à aujourd'hui.");
 }
 
 const SPECIES = [
@@ -1311,12 +1330,32 @@ function animate() {
 }
 
 /* ═══ Commandes de saisie ══════════════════════════════════════════════ */
+let pushControls = () => {};
+
 function bindControls() {
   const wind = el("in-wind"), dir = el("in-dir"), wave = el("in-wave"), per = el("in-period");
-  wind.value = String(Math.round(manualSea.wind));
-  dir.value  = String(Math.round(manualSea.dir / 45) * 45 % 360);
-  wave.value = String(Math.round(manualSea.wave * 10));
-  per.value  = String(Math.round(manualSea.period));
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  const readouts = () => {
+    el("out-wind").textContent   = `${manualSea.wind} km/h`;
+    el("out-dir").textContent    = compassName(manualSea.dir).replace("Nord-", "N-").replace("Sud-", "S-");
+    el("out-wave").textContent   = `${fr(manualSea.wave)} m`;
+    el("out-period").textContent = `${manualSea.period} s`;
+  };
+
+  /* Recopie l'état vers les curseurs — utilisé à l'amorçage et quand on
+     reprend la main, pour partir des valeurs prévues plutôt que d'anciennes. */
+  pushControls = () => {
+    wind.value = String(clamp(Math.round(manualSea.wind), 0, 70));
+    dir.value  = String((Math.round(manualSea.dir / 45) * 45) % 360);
+    wave.value = String(clamp(Math.round(manualSea.wave * 10), 0, 40));
+    per.value  = String(clamp(Math.round(manualSea.period), 3, 16));
+    manualSea = {
+      wind: Number(wind.value), dir: Number(dir.value),
+      wave: Number(wave.value) / 10, period: Number(per.value),
+    };
+    readouts();
+  };
 
   const sync = () => {
     manualSea = {
@@ -1325,16 +1364,25 @@ function bindControls() {
       wave: Number(wave.value) / 10,
       period: Number(per.value),
     };
-    el("out-wind").textContent   = `${manualSea.wind} km/h`;
-    el("out-dir").textContent    = compassName(manualSea.dir).replace("Nord-", "N-").replace("Sud-", "S-");
-    el("out-wave").textContent   = `${fr(manualSea.wave)} m`;
-    el("out-period").textContent = `${manualSea.period} s`;
+    readouts();
     try { localStorage.setItem(SEA_STORE, JSON.stringify(manualSea)); } catch { /* ignoré */ }
     render();
   };
 
   for (const c of [wind, dir, wave, per]) c.addEventListener("input", sync);
-  sync();
+
+  el("sea-toggle").addEventListener("click", () => {
+    if (!overrideSea) {
+      const v = liveSea && liveSea.get(hourKey(new Date()));
+      if (v) { manualSea = { wind: v.wind, dir: v.dir, wave: v.wave, period: v.period }; }
+      pushControls();
+    }
+    overrideSea = !overrideSea;
+    render();
+  });
+
+  pushControls();
+  render();
 }
 
 /* ═══ Démarrage ════════════════════════════════════════════════════════ */
