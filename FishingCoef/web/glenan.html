@@ -137,6 +137,51 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .factor-track { display: block; height: 5px; background: var(--sunken); border-radius: 3px; overflow: hidden; }
 .factor-fill  { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .5s ease; }
 .factor-val   { font-family: var(--f-data); font-size: .72rem; color: var(--ink-dim); text-align: right; }
+.factor.is-mult { padding-top: .45rem; border-top: 1px dashed var(--line); margin-top: .2rem; }
+.factor.is-mult .factor-fill { background: var(--amber); }
+
+/* ── Mer & vent ────────────────────────────────────────────────────────── */
+.sea-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.sea-state { font-family: var(--f-display); font-size: 1.15rem; }
+.sea-src {
+  font-size: .6rem; text-transform: uppercase; letter-spacing: .11em;
+  color: var(--ink-faint); border: 1px solid var(--line);
+  border-radius: 2px; padding: .14rem .38rem; white-space: nowrap;
+}
+.sea-src.is-live { color: var(--accent); border-color: var(--accent); }
+.sea-alert {
+  border-left: 3px solid var(--coral); background: color-mix(in srgb, var(--coral) 12%, transparent);
+  padding: .5rem .7rem; border-radius: 0 3px 3px 0; font-size: .8rem;
+}
+.sea-alert strong { color: var(--coral); }
+.ctl { display: grid; grid-template-columns: 3.7rem 1fr 4.9rem; align-items: center; gap: .45rem; }
+.ctl-label { font-size: .78rem; color: var(--ink-dim); }
+.ctl-val {
+  font-family: var(--f-data); font-size: .78rem; text-align: right; white-space: nowrap;
+}
+.ctl input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 20px;
+  background: transparent; margin: 0;
+}
+.ctl input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; background: var(--sunken); border-radius: 2px;
+}
+.ctl input[type="range"]::-moz-range-track {
+  height: 4px; background: var(--sunken); border-radius: 2px;
+}
+.ctl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; margin-top: -5.5px;
+  background: var(--accent); border-radius: 50%; border: 0; cursor: pointer;
+}
+.ctl input[type="range"]::-moz-range-thumb {
+  width: 15px; height: 15px; background: var(--accent);
+  border-radius: 50%; border: 0; cursor: pointer;
+}
+.ctl select {
+  width: 100%; font: inherit; font-size: .8rem; color: var(--ink);
+  background: var(--sunken); border: 1px solid var(--line);
+  border-radius: 3px; padding: .3rem .4rem;
+}
 
 /* ── Fenêtres solunaires ───────────────────────────────────────────────── */
 .window-row {
@@ -269,11 +314,57 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       </div>
     </section>
 
+    <!-- Mer & vent -->
+    <section class="panel stack-s" aria-labelledby="sea-h">
+      <div class="sea-head">
+        <h2 class="eyebrow" id="sea-h">Mer &amp; vent</h2>
+        <span class="sea-src" id="sea-src">saisie manuelle</span>
+      </div>
+      <div>
+        <div class="sea-state" id="sea-state">—</div>
+        <p class="note" id="sea-note" style="margin-top:.15rem"></p>
+      </div>
+      <div id="sea-alert-holder"></div>
+      <hr class="rule">
+      <div class="stack-s" id="sea-controls">
+        <div class="ctl">
+          <label class="ctl-label" for="in-wind">Vent</label>
+          <input type="range" id="in-wind" min="0" max="70" step="1" value="15">
+          <span class="ctl-val" id="out-wind">15 km/h</span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="in-dir">Direction</label>
+          <select id="in-dir">
+            <option value="0">Nord</option>
+            <option value="45">Nord-Est</option>
+            <option value="90">Est</option>
+            <option value="135">Sud-Est</option>
+            <option value="180">Sud</option>
+            <option value="225">Sud-Ouest</option>
+            <option value="270" selected>Ouest</option>
+            <option value="315">Nord-Ouest</option>
+          </select>
+          <span class="ctl-val" id="out-dir">—</span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="in-wave">Houle</label>
+          <input type="range" id="in-wave" min="0" max="40" step="1" value="8">
+          <span class="ctl-val" id="out-wave">0,8 m</span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="in-period">Période</label>
+          <input type="range" id="in-period" min="3" max="16" step="1" value="8">
+          <span class="ctl-val" id="out-period">8 s</span>
+        </div>
+      </div>
+      <p class="note" id="sea-help"></p>
+    </section>
+
     <!-- Indicateur quotidien -->
     <section class="panel stack-s" aria-labelledby="strip-h">
       <div>
         <h2 class="eyebrow" id="strip-h">Indicateur quotidien — 14 jours</h2>
-        <p class="note" style="margin:.3rem 0 0">Potentiel maximal de chaque journée. Touchez un jour pour l'afficher.</p>
+        <p class="note" style="margin:.3rem 0 0">Activité maximale de chaque journée, avant état de la mer. Touchez un jour pour l'afficher.</p>
       </div>
       <div class="strip-scroll">
         <div class="strip" id="strip" role="tablist"></div>
@@ -394,8 +485,9 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       </p>
       <p style="margin:0 0 .6rem">
         La théorie solunaire de John Alden Knight (1926) est une aide à la décision, pas une
-        garantie. Elle ignore le vent, la pression et la turbidité, qui pèsent au moins autant
-        sur une sortie. Tout est calculé sur l'appareil : la page fonctionne hors ligne.
+        garantie. L'astronomie est calculée sur l'appareil et fonctionne hors ligne ; le vent et
+        la houle viennent d'Open-Meteo lorsque l'hébergement autorise l'appel réseau, et de votre
+        saisie sinon. La pression et la turbidité ne sont pas prises en compte.
       </p>
       <p style="margin:0" id="colophon-tz"></p>
     </section>
@@ -624,6 +716,146 @@ function ratingColor(v) {
 
 /* ═══ Lieu ═════════════════════════════════════════════════════════════ */
 const LAT = 47.8917, LNG = -4.0064;
+/* Point houle : au large des Glénan, pour tomber sur une maille marine. */
+const SEA_LAT = 47.70, SEA_LNG = -4.00;
+/* Normale à la côte à Fouesnant : la baie de La Forêt s'ouvre au sud-sud-est. */
+const SHORE_FACING = 170;
+
+/* ═══ État de la mer ═══════════════════════════════════════════════════
+ * Le vent et la houle ne créent pas d'activité biologique : ils décident si
+ * l'on peut l'exploiter. Ils s'appliquent donc en facteur multiplicatif
+ * plafonné à 1, jamais en bonus — une journée solunaire médiocre par mer
+ * d'huile reste médiocre.
+ */
+
+/* Un souffle ride la surface et met le bar en confiance ; au-delà, la dérive
+   et le clapot rendent la pêche pénible puis impossible. */
+function windFactor(v) {
+  if (v <= 6)  return 0.86 + (v / 6) * 0.10;
+  if (v <= 20) return 0.96 + ((v - 6) / 14) * 0.04;
+  if (v <= 30) return 1.00 - ((v - 20) / 10) * 0.15;
+  if (v <= 40) return 0.85 - ((v - 30) / 10) * 0.30;
+  if (v <= 50) return 0.55 - ((v - 40) / 10) * 0.32;
+  return Math.max(0.05, 0.23 - ((v - 50) / 20) * 0.18);
+}
+
+function waveFactor(h) {
+  if (h <= 0.25) return 0.90;
+  if (h <= 0.5)  return 0.90 + ((h - 0.25) / 0.25) * 0.10;
+  if (h <= 1.2)  return 1.00;
+  if (h <= 2.0)  return 1.00 - ((h - 1.2) / 0.8) * 0.28;
+  if (h <= 3.0)  return 0.72 - ((h - 2.0) / 1.0) * 0.37;
+  return Math.max(0.05, 0.35 - ((h - 3.0) / 1.5) * 0.30);
+}
+
+/* Vent de terre : mer aplatie, lancer facilité. Vent de mer : côte exposée. */
+function directionFactor(dir) {
+  const onshore = Math.cos((dir - SHORE_FACING) * RAD);
+  return onshore > 0 ? 1 - 0.10 * onshore : 1 + 0.04 * -onshore;
+}
+
+/* Houle courte = clapot désordonné ; houle longue = mer formée mais lisible. */
+const periodFactor = T => T < 6 ? 0.94 : T < 8 ? 0.98 : 1;
+
+const UNSAFE_WIND = 50, UNSAFE_WAVE = 2.5;
+
+function fishability(sea) {
+  if (!sea) return null;
+  const w = windFactor(sea.wind), h = waveFactor(sea.wave);
+  const d = directionFactor(sea.dir), p = periodFactor(sea.period);
+  const factor = Math.max(0.05, Math.min(1, w * h * d * p));
+  const unsafe = sea.wind >= UNSAFE_WIND || sea.wave >= UNSAFE_WAVE;
+  const limiter = w <= h ? "le vent" : "la houle";
+  let state;
+  if (unsafe)          state = "Impraticable";
+  else if (factor >= 0.92) state = "Très favorable";
+  else if (factor >= 0.78) state = "Favorable";
+  else if (factor >= 0.60) state = "Praticable";
+  else if (factor >= 0.35) state = "Difficile";
+  else                     state = "Très difficile";
+  return { factor, unsafe, limiter, state, w, h };
+}
+
+const COMPASS = ["Nord","Nord-Est","Est","Sud-Est","Sud","Sud-Ouest","Ouest","Nord-Ouest"];
+const compassName = d => COMPASS[Math.round(((d % 360) + 360) % 360 / 45) % 8];
+/* « vent d'ouest » mais « vent de nord-est » */
+const windFrom = d => {
+  const n = compassName(d).toLowerCase();
+  return /^[aeiou]/.test(n) ? `d'${n}` : `de ${n}`;
+};
+/* Virgule décimale */
+const fr = (n, digits = 1) => n.toFixed(digits).replace(".", ",");
+
+/* ═══ Source des conditions ════════════════════════════════════════════
+ * Deux sources possibles. La prévision automatique Open-Meteo n'aboutit que
+ * si la page est servie depuis un hôte qui autorise l'appel réseau ; publiée
+ * comme artefact, la politique de sécurité le bloque et l'on retombe alors
+ * sur la saisie manuelle, qui reste la source par défaut.
+ */
+const SEA_STORE = "glenan.sea.v1";
+let manualSea = { wind: 15, dir: 270, wave: 0.8, period: 8 };
+let liveSea = null;   // Map "AAAA-MM-JJTHH" -> {wind,dir,wave,period}
+
+try {
+  const saved = JSON.parse(localStorage.getItem(SEA_STORE) || "null");
+  if (saved && typeof saved.wind === "number") manualSea = { ...manualSea, ...saved };
+} catch { /* stockage indisponible : on garde les valeurs par défaut */ }
+
+const hourKey = d =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}`;
+
+/** Conditions pour un instant donné : prévision si disponible, sinon saisie
+ *  manuelle pour aujourd'hui seulement — on n'extrapole pas une saisie
+ *  d'aujourd'hui sur une date future. */
+function seaAt(when, isToday) {
+  if (liveSea) {
+    const v = liveSea.get(hourKey(when));
+    if (v) return v;
+  }
+  return isToday ? manualSea : null;
+}
+
+const plausible = (v, lo, hi) => v === null || (typeof v === "number" && isFinite(v) && v >= lo && v <= hi);
+
+/** Tente la prévision automatique. Toute réponse de forme inattendue ou de
+ *  valeurs invraisemblables est rejetée : mieux vaut la saisie manuelle
+ *  qu'un chiffre faux affiché avec aplomb. */
+async function loadForecast() {
+  const air = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}`
+    + `&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh`
+    + `&timezone=Europe%2FParis&forecast_days=14`;
+  const sea = `https://marine-api.open-meteo.com/v1/marine?latitude=${SEA_LAT}&longitude=${SEA_LNG}`
+    + `&hourly=wave_height,wave_period&timezone=Europe%2FParis&forecast_days=14`;
+
+  const a = await fetch(air).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
+  const t = a?.hourly?.time, ws = a?.hourly?.wind_speed_10m, wd = a?.hourly?.wind_direction_10m;
+  if (!Array.isArray(t) || !Array.isArray(ws) || !Array.isArray(wd)) throw new Error("forme inattendue");
+  if (t.length === 0 || t.length !== ws.length || t.length !== wd.length) throw new Error("longueurs incohérentes");
+  if (!ws.every(v => plausible(v, 0, 250)) || !wd.every(v => plausible(v, 0, 360))) throw new Error("valeurs hors plage");
+
+  let wh = null, wp = null;
+  try {
+    const m = await fetch(sea).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
+    if (Array.isArray(m?.hourly?.time) && m.hourly.time.length === t.length &&
+        m.hourly.wave_height?.every(v => plausible(v, 0, 25)) &&
+        m.hourly.wave_period?.every(v => plausible(v, 0, 30))) {
+      wh = m.hourly.wave_height; wp = m.hourly.wave_period;
+    }
+  } catch { /* houle indisponible : on continue avec le vent seul */ }
+
+  const map = new Map();
+  for (let i = 0; i < t.length; i++) {
+    if (ws[i] === null || wd[i] === null) continue;
+    map.set(String(t[i]).slice(0, 13), {
+      wind: ws[i], dir: wd[i],
+      wave:   wh && wh[i] !== null ? wh[i] : 0.8,
+      period: wp && wp[i] !== null ? wp[i] : 8,
+      estimatedWave: !wh,
+    });
+  }
+  if (map.size === 0) throw new Error("aucune heure exploitable");
+  return map;
+}
 
 /* ═══ Format ═══════════════════════════════════════════════════════════ */
 const hm = d => d ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -782,19 +1014,66 @@ function renderStrip() {
   }
 }
 
-function renderFactors(parts) {
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+
+function renderFactors(parts, fish) {
   const rows = [
     ["Solunaire", parts.solunar, WEIGHTS.solunar],
     ["Lune",      parts.moon,    WEIGHTS.moon],
     ["Marée",     parts.tide,    WEIGHTS.tide],
     ["Lumière",   parts.light,   WEIGHTS.light],
   ];
-  el("factors").innerHTML = rows.map(([name, got, max]) =>
+  let html = rows.map(([name, got, max]) =>
     `<div class="factor">
        <span class="factor-name">${name}</span>
        <span class="factor-track"><span class="factor-fill" style="width:${(got / max) * 100}%"></span></span>
        <span class="factor-val">${got.toFixed(0)}/${max}</span>
      </div>`).join("");
+  if (fish) {
+    html += `<div class="factor is-mult">
+       <span class="factor-name">Mer</span>
+       <span class="factor-track"><span class="factor-fill" style="width:${fish.factor * 100}%"></span></span>
+       <span class="factor-val">×${fr(fish.factor, 2)}</span>
+     </div>`;
+  }
+  el("factors").innerHTML = html;
+}
+
+function renderSea(fish, sea, isToday) {
+  const src = el("sea-src");
+  src.textContent = liveSea ? "prévision automatique" : "saisie manuelle";
+  src.classList.toggle("is-live", !!liveSea);
+
+  el("sea-controls").hidden = !!liveSea;
+
+  if (!fish) {
+    el("sea-state").textContent = "Inconnu";
+    el("sea-note").textContent =
+      "Aucune prévision pour cette date. La saisie manuelle ne vaut que pour aujourd'hui : la note affichée ne tient donc pas compte de la mer.";
+    el("sea-alert-holder").innerHTML = "";
+    el("sea-help").textContent = "";
+    return;
+  }
+
+  el("sea-state").textContent = fish.state;
+  el("sea-state").style.color = fish.unsafe ? "var(--coral)" : "";
+  el("sea-note").textContent =
+    `${Math.round(sea.wind)} km/h ${windFrom(sea.dir)}, `
+    + `houle de ${fr(sea.wave)} m à ${Math.round(sea.period)} s. `
+    + `Facteur appliqué à l'activité : ×${fr(fish.factor, 2)}.`;
+
+  el("sea-alert-holder").innerHTML = fish.unsafe
+    ? `<div class="sea-alert"><strong>Sortie déconseillée.</strong> Au-delà de
+       ${UNSAFE_WIND} km/h de vent ou ${fr(UNSAFE_WAVE)} m de houle, la pêche du bord
+       devient dangereuse sur les pointes et l'embarquement vers les Glénan ne
+       se justifie pas.</div>`
+    : "";
+
+  el("sea-help").textContent = liveSea
+    ? "Prévision Open-Meteo pour Fouesnant et le large des Glénan, actualisée à l'ouverture."
+    : (isToday
+        ? "Relevez le vent et la houle sur votre application marine habituelle, puis reportez-les ici. Vos valeurs sont conservées sur cet appareil."
+        : "Ces réglages ne s'appliquent qu'à aujourd'hui.");
 }
 
 const SPECIES = [
@@ -850,33 +1129,51 @@ function render() {
   const isToday = picked === 0;
   const at = isToday ? now : s.peakAt;
   const sc = scoreAt(at, ctx);
-  const shown = isToday ? sc.total : s.peak;
+  const astro = isToday ? sc.total : s.peak;
+
+  const sea = seaAt(at, isToday);
+  const fish = fishability(sea);
+  const shown = fish ? Math.round(astro * fish.factor) : astro;
 
   /* verdict */
   el("verdict-when").textContent = isToday
     ? "Maintenant"
     : `${s.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} ${MONTH[s.date.getMonth()]} — au pic`;
   el("score").textContent = shown;
-  el("score").style.color = ratingColor(shown);
-  el("verdict-h").textContent = rating(shown);
+  el("score").style.color = fish && fish.unsafe ? "var(--coral)" : ratingColor(shown);
+  el("verdict-h").textContent = fish && fish.unsafe ? "Restez à terre" : rating(shown);
 
-  const live = ctx.windows.find(w => at >= w.start && at <= w.end);
-  el("verdict-note").textContent = isToday
-    ? (live
-        ? `Créneau ${live.type === "major" ? "majeur" : "mineur"} en cours — ${live.cause.toLowerCase()}. Meilleur moment du jour à ${hm(s.peakAt)} (${s.peak}).`
-        : `Meilleur moment de la journée à ${hm(s.peakAt)}, avec ${s.peak} sur 100.`)
-    : `Pic à ${hm(s.peakAt)}. Coefficient de marée ${ctx.coef}, ${phaseName(ctx.phase).toLowerCase()}.`;
+  const openWindow = ctx.windows.find(w => at >= w.start && at <= w.end);
+  let note;
+  if (fish && fish.unsafe) {
+    note = `Mer trop formée : ${Math.round(sea.wind)} km/h de vent et ${fr(sea.wave)} m de houle. `
+         + `L'activité serait pourtant de ${astro} sur 100.`;
+  } else if (isToday) {
+    note = openWindow
+      ? `Créneau ${openWindow.type === "major" ? "majeur" : "mineur"} en cours — ${openWindow.cause.toLowerCase()}. Pic du jour à ${hm(s.peakAt)}.`
+      : `Meilleur moment de la journée à ${hm(s.peakAt)}, avec ${s.peak} sur 100 d'activité.`;
+    if (fish && fish.factor < 0.85) note += ` ${cap(fish.limiter)} ramène la note à ${shown}.`;
+  } else {
+    note = `Pic à ${hm(s.peakAt)}. Coefficient de marée ${ctx.coef}, ${phaseName(ctx.phase).toLowerCase()}.`;
+    if (fish && fish.factor < 0.85) note += ` ${cap(fish.limiter)} ramène la note à ${shown}.`;
+    if (!fish) note += " État de la mer inconnu à cette date.";
+  }
+  el("verdict-note").textContent = note;
+
+  renderSea(fish, sea, isToday);
 
   /* courbe */
   drawCurve(ctx, dayCurve(s.date, ctx, 10), isToday ? now : null);
 
   /* ventilation */
-  renderFactors(isToday ? sc.parts : scoreAt(s.peakAt, ctx).parts);
-  const dom = Object.entries(isToday ? sc.parts : scoreAt(s.peakAt, ctx).parts)
-    .sort((a, b) => b[1] - a[1])[0][0];
+  const parts = isToday ? sc.parts : scoreAt(s.peakAt, ctx).parts;
+  renderFactors(parts, fish);
+  const dom = Object.entries(parts).sort((a, b) => b[1] - a[1])[0][0];
   const domLabel = { solunar: "la position de la Lune", moon: "la phase lunaire",
                      tide: "le coefficient de marée", light: "la lumière rasante" }[dom];
-  el("factors-note").textContent = `Facteur dominant : ${domLabel}. Les quatre termes sont indépendants et plafonnés, la note est leur somme.`;
+  el("factors-note").textContent =
+    `Facteur dominant : ${domLabel}. Les quatre premiers termes s'additionnent pour donner l'activité`
+    + (fish ? `, que l'état de la mer multiplie ensuite — il ne peut que retrancher, jamais ajouter.` : `.`);
 
   /* créneaux */
   el("windows").innerHTML = ctx.windows.map(w => {
@@ -936,8 +1233,36 @@ function animate() {
   requestAnimationFrame(step);
 }
 
+/* ═══ Commandes de saisie ══════════════════════════════════════════════ */
+function bindControls() {
+  const wind = el("in-wind"), dir = el("in-dir"), wave = el("in-wave"), per = el("in-period");
+  wind.value = String(Math.round(manualSea.wind));
+  dir.value  = String(Math.round(manualSea.dir / 45) * 45 % 360);
+  wave.value = String(Math.round(manualSea.wave * 10));
+  per.value  = String(Math.round(manualSea.period));
+
+  const sync = () => {
+    manualSea = {
+      wind: Number(wind.value),
+      dir: Number(dir.value),
+      wave: Number(wave.value) / 10,
+      period: Number(per.value),
+    };
+    el("out-wind").textContent   = `${manualSea.wind} km/h`;
+    el("out-dir").textContent    = compassName(manualSea.dir).replace("Nord-", "N-").replace("Sud-", "S-");
+    el("out-wave").textContent   = `${fr(manualSea.wave)} m`;
+    el("out-period").textContent = `${manualSea.period} s`;
+    try { localStorage.setItem(SEA_STORE, JSON.stringify(manualSea)); } catch { /* ignoré */ }
+    render();
+  };
+
+  for (const c of [wind, dir, wave, per]) c.addEventListener("input", sync);
+  sync();
+}
+
 /* ═══ Démarrage ════════════════════════════════════════════════════════ */
 renderSpots();
+bindControls();
 el("colophon-tz").textContent =
   `Heures affichées dans le fuseau de votre appareil (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`;
 drawProgress = 0;
@@ -945,6 +1270,12 @@ render();
 animate();
 
 setInterval(() => { if (picked === 0) render(); }, 60000);
+
+/* La prévision n'aboutit que si l'hôte autorise l'appel réseau ; sinon la
+   saisie manuelle reste en place sans que rien ne casse. */
+loadForecast()
+  .then(map => { liveSea = map; render(); })
+  .catch(() => { /* silencieux : la saisie manuelle est déjà affichée */ });
 
 let rt;
 window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 150); });
