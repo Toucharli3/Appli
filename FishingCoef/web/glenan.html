@@ -281,6 +281,29 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .species-verdict { font-size: .72rem; white-space: nowrap; }
 .species-where { font-size: .7rem; color: var(--ink-faint); display: block; margin-top: .05rem; }
 
+/* ── Programme ─────────────────────────────────────────────────────────── */
+.plan-hero {
+  background: var(--sunken); border-radius: 4px; padding: .8rem .85rem;
+  border-left: 3px solid var(--accent);
+}
+.plan-when {
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .13em; color: var(--accent);
+}
+.plan-line { display: flex; align-items: baseline; justify-content: space-between; gap: .7rem; margin-top: .15rem; }
+.plan-spot { font-family: var(--f-display); font-size: 1.25rem; line-height: 1.2; }
+.plan-score { font-family: var(--f-data); font-size: 1.6rem; font-weight: 700; }
+.plan-slot { font-family: var(--f-data); font-size: .95rem; margin-top: .1rem; }
+.plan-why { font-size: .78rem; color: var(--ink-dim); margin-top: .35rem; line-height: 1.5; }
+.plan-row {
+  display: grid; grid-template-columns: 3.1rem 1fr auto 2.1rem;
+  align-items: baseline; gap: .55rem; padding: .48rem 0;
+}
+.plan-row + .plan-row { border-top: 1px solid var(--line); }
+.plan-day { font-size: .74rem; color: var(--ink-dim); text-transform: capitalize; }
+.plan-name { font-size: .84rem; }
+.plan-time { font-family: var(--f-data); font-size: .76rem; color: var(--ink-dim); }
+.plan-val { font-family: var(--f-data); font-size: .84rem; font-weight: 700; text-align: right; }
+
 /* ── Carte ─────────────────────────────────────────────────────────────── */
 .map-frame {
   /* 400 px de haut : les postes s'étalent sur 19 km du nord de la baie au sud
@@ -394,6 +417,17 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <div class="curve-axis" aria-hidden="true">
         <span>00 h</span><span>06 h</span><span>12 h</span><span>18 h</span><span>24 h</span>
       </div>
+    </section>
+
+    <!-- Le programme -->
+    <section class="panel stack-s" aria-labelledby="plan-h">
+      <div>
+        <h2 class="eyebrow" id="plan-h">Le programme</h2>
+        <p class="note" style="margin:.3rem 0 0">Le meilleur poste et le bon créneau, jour par jour.</p>
+      </div>
+      <div id="plan-hero"></div>
+      <div id="plan-rest"></div>
+      <p class="note" id="plan-note"></p>
     </section>
 
     <!-- Mer & vent -->
@@ -569,6 +603,8 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
         <span><i style="background:var(--coral)"></i>À éviter</span>
         <span><i style="border:1px dashed var(--ink-dim);background:none"></i>Accès bateau</span>
       </div>
+
+      <button type="button" class="link-btn" id="map-all">Voir tous les postes</button>
 
       <div id="spot-detail"></div>
 
@@ -1346,6 +1382,104 @@ function spotScore(spot, astro, sea, st) {
   return { score: Math.round(astro * factor * tm), tm, fish, local, factor, unsafe, crossing };
 }
 
+/* ═══ Programme ════════════════════════════════════════════════════════
+ * Pour chaque jour à venir, on cherche le meilleur couple poste × instant,
+ * puis on étend autour du pic tant que la note reste proche, ce qui donne un
+ * créneau utilisable plutôt qu'une heure isolée.
+ */
+const PLAN_STEP = 30 * 60000;
+
+function computePlan(days) {
+  const out = [];
+  for (let d = 0; d < days; d++) {
+    const day = dayAt(d);
+    const s = summaryFor(day);
+    const ctx = s.ctx;
+    const isToday = d === 0;
+    const s0 = new Date(day); s0.setHours(0, 0, 0, 0);
+    const floor = Date.now() - 30 * 60000;   // on ne propose pas un créneau passé
+
+    const at = t => {
+      const when = new Date(t);
+      const astro = scoreAt(when, ctx).total;
+      return { astro, sea: seaAt(when, isToday), st: tideState(t, ctx.tides) };
+    };
+
+    let best = null;
+    for (let t = +s0; t < +s0 + DAY; t += PLAN_STEP) {
+      if (isToday && t < floor) continue;
+      const env = at(t);
+      for (const spot of SPOTS) {
+        const r = spotScore(spot, env.astro, env.sea, env.st);
+        if (!best || r.score > best.score) best = { score: r.score, spot, t, env, r };
+      }
+    }
+    if (!best) continue;
+
+    const scoreOf = t => {
+      const env = at(t);
+      return spotScore(best.spot, env.astro, env.sea, env.st).score;
+    };
+    /* On élargit tant que la note reste dans les 82 % du pic, puis on impose
+       un créneau d'au moins 1 h 30 : un conseil à la demi-heure près serait
+       plus précis que le modèle ne le permet, et inutilisable sur le terrain. */
+    const thr = best.score * 0.82;
+    const low = isToday ? Math.max(+s0, floor) : +s0;
+    const high = +s0 + DAY;
+    let a = best.t, b = best.t;
+    while (a - PLAN_STEP >= low && scoreOf(a - PLAN_STEP) >= thr) a -= PLAN_STEP;
+    while (b + PLAN_STEP < high && scoreOf(b + PLAN_STEP) >= thr) b += PLAN_STEP;
+
+    const MIN_SLOT = 90 * 60000;
+    let span = (b + PLAN_STEP) - a;
+    while (span < MIN_SLOT && (a > low || b + PLAN_STEP < high)) {
+      if (a - PLAN_STEP >= low) a -= PLAN_STEP;
+      else if (b + PLAN_STEP < high) b += PLAN_STEP;
+      else break;
+      span = (b + PLAN_STEP) - a;
+    }
+
+    out.push({
+      date: s.date, spot: best.spot, score: best.score,
+      from: new Date(a), to: new Date(b + PLAN_STEP),
+      ctx, env: best.env, r: best.r,
+    });
+  }
+  return out;
+}
+
+let planCache = null, planKey = "";
+function getPlan() {
+  const key = [liveSea ? "live" : "man", overrideSea, manualSea.wind, manualSea.dir,
+               manualSea.wave, manualSea.period, new Date().toDateString(),
+               Math.floor(Date.now() / 1800000)].join("|");
+  if (planCache && planKey === key) return planCache;
+  planKey = key;
+  planCache = computePlan(6);
+  return planCache;
+}
+
+/** Une phrase qui dit pourquoi ce créneau, pas juste qu'il est bon. */
+function planReason(e) {
+  const bits = [];
+  const w = e.ctx.windows.find(x => e.from < x.end && e.to > x.start);
+  if (w) bits.push(`créneau ${w.type === "major" ? "majeur" : "mineur"} (${w.cause.toLowerCase()})`);
+
+  const band = tideBand(e.ctx.coef);
+  bits.push(`${band.label.toLowerCase()} ${e.ctx.coef}`);
+
+  const sr = e.ctx.sun.sunrise, ss = e.ctx.sun.sunset;
+  const near = (t, d) => t && Math.abs(+d - +t) < 90 * 60000;
+  const mid = new Date((+e.from + +e.to) / 2);
+  if (near(sr, mid))      bits.push("à l'aube");
+  else if (near(ss, mid)) bits.push("au crépuscule");
+
+  if (e.r.local) {
+    bits.push(e.r.local.onshore > 0.5 ? "poste exposé au vent" : "poste sous le vent");
+  }
+  return cap(bits.join(", ")) + ".";
+}
+
 /* ═══ Carte ════════════════════════════════════════════════════════════
  * Rendu de tuiles maison plutôt qu'une bibliothèque tierce : la page reste
  * un fichier unique, sans dépendance à charger.
@@ -1366,6 +1500,7 @@ const MAP_FIT = { lat: 47.8015, lon: -3.985, z: 11 };
 const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.15, e: -3.83 };
 let mapView = { ...MAP_FIT };
 let pickedSpot = null;
+let showAllSpots = false;
 
 function drawMap() {
   const frame = el("map-frame"), layer = el("map-layer");
@@ -1417,12 +1552,27 @@ function drawMap() {
 
   /* Marqueurs dont le centre tient dans le cadre : masqués par overflow, ceux
      qui en sortent resteraient cliquables par-dessus le reste de la page. */
-  const visible = [];
+  let visible = [];
   SPOTS.forEach((spot, i) => {
     const px = lonToX(spot.lon, z) - ox, py = latToY(spot.lat, z) - oy;
     if (px < 0 || px > W || py < 0 || py > H) return;
     visible.push({ spot, i, px, py, r: spotScore(spot, astro, sea, st) });
   });
+
+  /* On ne garde que les postes qui valent le déplacement : ceux qui tiennent
+     la comparaison avec le meilleur du moment. Un poste sélectionné reste
+     affiché même s'il sort du lot, sans quoi il disparaîtrait sous le doigt. */
+  if (!showAllSpots && visible.length > 3) {
+    const top = Math.max(...visible.map(v => v.r.score));
+    const ranked = [...visible].sort((a, b) => b.r.score - a.r.score);
+    const keep = ranked.filter(v => v.r.score >= top * 0.75).slice(0, 8);
+    while (keep.length < 3 && keep.length < ranked.length) keep.push(ranked[keep.length]);
+    if (pickedSpot !== null && !keep.some(v => v.i === pickedSpot)) {
+      const sel = visible.find(v => v.i === pickedSpot);
+      if (sel) keep.push(sel);
+    }
+    visible = keep;
+  }
 
   /* Les îles des Glénan sont distantes de quelques centaines de mètres :
      dézoomé, leurs marqueurs se recouvrent et deviennent intouchables. On
@@ -1475,6 +1625,46 @@ function drawMap() {
     }
     layer.appendChild(btn);
   }
+}
+
+function renderPlan() {
+  const plan = getPlan();
+  if (!plan.length) { el("plan-hero").innerHTML = ""; el("plan-rest").innerHTML = ""; return; }
+
+  /* Le meilleur jour passe devant, les autres suivent dans l'ordre du calendrier. */
+  const top = plan.reduce((a, b) => (b.score > a.score ? b : a));
+  const rest = plan.filter(e => e !== top);
+  const isToday = top.date.toDateString() === new Date().toDateString();
+  const dayName = isToday
+    ? "Aujourd'hui"
+    : cap(`${top.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} ${MONTH[top.date.getMonth()]}`);
+
+  el("plan-hero").innerHTML = `<div class="plan-hero">
+    <div class="plan-when">${dayName}</div>
+    <div class="plan-line">
+      <span class="plan-spot">${top.spot.n}</span>
+      <span class="plan-score" style="color:${ratingColor(top.score)}">${top.score}</span>
+    </div>
+    <div class="plan-slot">de ${hm(top.from)} à ${hm(top.to)}</div>
+    <div class="plan-why">${planReason(top)}</div>
+  </div>`;
+
+  el("plan-rest").innerHTML = rest.map(e => {
+    const d = e.date.toDateString() === new Date().toDateString()
+      ? "auj."
+      : e.date.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit" });
+    return `<div class="plan-row">
+      <span class="plan-day">${d}</span>
+      <span class="plan-name">${e.spot.n}</span>
+      <span class="plan-time">${hm(e.from)}–${hm(e.to)}</span>
+      <span class="plan-val" style="color:${ratingColor(e.score)}">${e.score}</span>
+    </div>`;
+  }).join("");
+
+  const sansMer = plan.some(e => !e.r.local);
+  el("plan-note").textContent = sansMer
+    ? "Sans prévision de mer sur les jours les plus lointains, ces créneaux ne tiennent compte que de l'activité et de la marée."
+    : "Créneaux calculés sur l'activité, la marée et l'état de la mer prévu à chaque poste.";
 }
 
 function renderSpotDetail() {
@@ -1600,6 +1790,11 @@ function bindMap() {
   el("map-in").addEventListener("click",  () => { mapView.z++; clampView(); drawMap(); });
   el("map-out").addEventListener("click", () => { mapView.z--; clampView(); drawMap(); });
   el("map-fit").addEventListener("click", () => { mapView = { ...MAP_FIT }; pickedSpot = null; render(); });
+  el("map-all").addEventListener("click", () => {
+    showAllSpots = !showAllSpots;
+    el("map-all").textContent = showAllSpots ? "Ne garder que les bons postes" : "Voir tous les postes";
+    drawMap();
+  });
 }
 
 /* ═══ Rendu ════════════════════════════════════════════════════════════ */
@@ -1842,6 +2037,7 @@ function render() {
   }
 
   renderSpecies(ctx.coef, s.date.getMonth() + 1);
+  renderPlan();
   drawMap();
   renderSpotDetail();
   el("map-note").textContent =
@@ -1941,6 +2137,7 @@ loadForecast()
     /* Les contextes déjà calculés portent les étales estimées : on les jette
        pour qu'ils soient reconstruits sur le niveau prévu. */
     cache.clear();
+    planCache = null;
     render();
   })
   .catch(() => { /* silencieux : la saisie manuelle est déjà affichée */ });
