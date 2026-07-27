@@ -362,6 +362,17 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .map-legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
 .map-legend span { display: flex; align-items: center; gap: .35rem; font-size: .68rem; color: var(--ink-dim); }
 .map-legend i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+.rank-row {
+  display: flex; align-items: center; gap: .7rem; width: 100%;
+  background: none; border: 0; border-radius: 3px; padding: .42rem .3rem;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.rank-row + .rank-row { border-top: 1px solid var(--line); }
+.rank-row:hover { background: var(--sunken); }
+.rank-val { font-family: var(--f-data); font-size: 1.05rem; font-weight: 700; width: 1.9rem; }
+.rank-body { display: flex; flex-direction: column; }
+.rank-name { font-size: .87rem; }
+.rank-sub { font-size: .68rem; color: var(--ink-faint); margin-top: .05rem; }
 .spot-card { background: var(--sunken); border-radius: 4px; padding: .7rem .8rem; }
 .spot-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
 .spot-card-name { font-family: var(--f-display); font-size: 1.05rem; }
@@ -428,6 +439,105 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <div id="plan-hero"></div>
       <div id="plan-rest"></div>
       <p class="note" id="plan-note"></p>
+    </section>
+
+    <!-- Carte des postes -->
+    <section class="panel stack-s" aria-labelledby="map-h">
+      <div>
+        <h2 class="eyebrow" id="map-h">Où aller maintenant</h2>
+        <p class="note" style="margin:.3rem 0 0">
+          Chaque poste est noté pour l'heure affichée, selon son exposition au vent et
+          l'état de la marée. Touchez un marqueur.
+        </p>
+      </div>
+
+      <div class="map-frame" id="map-frame">
+        <div id="map-layer"></div>
+        <div class="map-tools">
+          <button type="button" class="map-btn" id="map-in"  aria-label="Zoomer">+</button>
+          <button type="button" class="map-btn" id="map-out" aria-label="Dézoomer">−</button>
+          <button type="button" class="map-btn" id="map-fit" aria-label="Vue d'ensemble">⤢</button>
+        </div>
+        <div class="map-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
+      </div>
+
+      <div class="map-legend">
+        <span><i style="background:var(--accent)"></i>Favorable</span>
+        <span><i style="background:var(--amber)"></i>Moyen</span>
+        <span><i style="background:var(--coral)"></i>À éviter</span>
+        <span><i style="border:1px dashed var(--ink-dim);background:none"></i>Accès bateau</span>
+      </div>
+
+      <div style="display:flex;gap:1.1rem;flex-wrap:wrap">
+        <button type="button" class="link-btn" id="map-all">Voir tous les postes</button>
+        <button type="button" class="link-btn" id="map-add">Ajouter mon spot ici</button>
+      </div>
+      <div id="add-form" hidden class="stack-s" style="background:var(--sunken);border-radius:4px;padding:.7rem .8rem">
+        <p class="note" style="margin:0">
+          Le poste sera placé au centre de la carte. Cadrez d'abord l'endroit voulu, puis renseignez-le.
+        </p>
+        <div class="ctl">
+          <label class="ctl-label" for="add-name">Nom</label>
+          <input type="text" id="add-name" placeholder="Ma langue de sable"
+                 style="width:100%;font:inherit;font-size:.82rem;color:var(--ink);background:var(--raised);
+                        border:1px solid var(--line);border-radius:3px;padding:.32rem .45rem">
+          <span></span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="add-kind">Fond</label>
+          <select id="add-kind">
+            <option value="plateau">Plateau</option>
+            <option value="tombant">Tombant</option>
+            <option value="pointe">Pointe</option>
+            <option value="estran">Estran</option>
+            <option value="herbier">Herbier</option>
+            <option value="digue">Digue</option>
+          </select>
+          <span></span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="add-tide">Marée</label>
+          <select id="add-tide">
+            <option value="toute">À toute marée</option>
+            <option value="flot">Au flot</option>
+            <option value="jusant">Au jusant</option>
+            <option value="basse">À basse mer</option>
+            <option value="haute">À pleine mer</option>
+          </select>
+          <span></span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="add-facing">Ouvert au</label>
+          <select id="add-facing">
+            <option value="0">Nord</option><option value="45">Nord-Est</option>
+            <option value="90">Est</option><option value="135">Sud-Est</option>
+            <option value="180" selected>Sud</option><option value="225">Sud-Ouest</option>
+            <option value="270">Ouest</option><option value="315">Nord-Ouest</option>
+          </select>
+          <span></span>
+        </div>
+        <div class="ctl">
+          <label class="ctl-label" for="add-boat">Accès</label>
+          <select id="add-boat">
+            <option value="0">Du bord</option>
+            <option value="1">En bateau</option>
+          </select>
+          <span></span>
+        </div>
+        <div style="display:flex;gap:1.1rem">
+          <button type="button" class="link-btn" id="add-save">Enregistrer</button>
+          <button type="button" class="link-btn" id="add-cancel" style="color:var(--ink-dim)">Annuler</button>
+        </div>
+      </div>
+
+      <div id="spot-detail"></div>
+
+      <div>
+        <h3 class="eyebrow" style="margin-bottom:.4rem">Les mieux placés à cette heure</h3>
+        <div id="spot-rank"></div>
+      </div>
+
+      <p class="note" id="map-note"></p>
     </section>
 
     <!-- Mer & vent -->
@@ -587,40 +697,6 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
         <div class="kv"><span class="kv-k">Coucher</span><span class="kv-v" id="sun-set">—</span></div>
       </section>
     </div>
-
-    <!-- Carte des postes -->
-    <section class="panel stack-s" aria-labelledby="map-h">
-      <div>
-        <h2 class="eyebrow" id="map-h">Où aller maintenant</h2>
-        <p class="note" style="margin:.3rem 0 0">
-          Chaque poste est noté pour l'heure affichée, selon son exposition au vent et
-          l'état de la marée. Touchez un marqueur.
-        </p>
-      </div>
-
-      <div class="map-frame" id="map-frame">
-        <div id="map-layer"></div>
-        <div class="map-tools">
-          <button type="button" class="map-btn" id="map-in"  aria-label="Zoomer">+</button>
-          <button type="button" class="map-btn" id="map-out" aria-label="Dézoomer">−</button>
-          <button type="button" class="map-btn" id="map-fit" aria-label="Vue d'ensemble">⤢</button>
-        </div>
-        <div class="map-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
-      </div>
-
-      <div class="map-legend">
-        <span><i style="background:var(--accent)"></i>Favorable</span>
-        <span><i style="background:var(--amber)"></i>Moyen</span>
-        <span><i style="background:var(--coral)"></i>À éviter</span>
-        <span><i style="border:1px dashed var(--ink-dim);background:none"></i>Accès bateau</span>
-      </div>
-
-      <button type="button" class="link-btn" id="map-all">Voir tous les postes</button>
-
-      <div id="spot-detail"></div>
-
-      <p class="note" id="map-note"></p>
-    </section>
 
     <!-- Espèces -->
     <section class="panel stack-s" aria-labelledby="sp-h">
@@ -1406,6 +1482,26 @@ const SPOTS = [
   { n: "Le Loc'h", lat: 47.7147, lon: -4.0069, facing: 200, shelter: 0.20,
     tide: "toute", boat: true, kind: "tombant", depth: 16, sp: "Lieu jaune, vieille",
     d: "Sud-ouest de l'archipel, avec son étang. Roches éparses au large." },
+
+  /* Secteur est, de Trégunc à l'Aven */
+  { n: "Pointe de Trévignon", lat: 47.7883, lon: -3.8783, facing: 190, shelter: 0.05,
+    tide: "jusant", boat: false, kind: "pointe", depth: 8, check: true,
+    d: "Pointe très exposée, réputée pour le bar au lancer et au surfcasting. "
+     + "Les courants y ramènent le poisson en continu." },
+  { n: "Île Raguenez", lat: 47.7947, lon: -3.8106, facing: 180, shelter: 0.15,
+    tide: "basse", boat: false, kind: "estran", depth: 3, check: true,
+    d: "Reliée à la côte par un tombolo qui découvre à basse mer. Estran rocheux et sableux." },
+  { n: "Port Manec'h", lat: 47.7969, lon: -3.7422, facing: 170, shelter: 0.55,
+    tide: "jusant", boat: false, kind: "pointe", depth: 6, check: true,
+    d: "Embouchure de l'Aven et du Bélon. Le jusant y sort une eau chargée que le bar remonte." },
+
+  /* Secteur ouest, embouchure de l'Odet */
+  { n: "Sainte-Marine", lat: 47.8697, lon: -4.1000, facing: 160, shelter: 0.50,
+    tide: "jusant", boat: false, kind: "pointe", depth: 8, check: true,
+    d: "Rive ouest de l'Odet, face à Bénodet. Fort courant de marée dans le goulet." },
+  { n: "Pointe de Combrit", lat: 47.8633, lon: -4.1150, facing: 200, shelter: 0.20,
+    tide: "toute", boat: false, kind: "pointe", depth: 7, check: true,
+    d: "Pointe qui ferme l'estuaire à l'ouest. Roche et sable, exposée au sud-ouest." },
 ];
 
 /*
@@ -1439,6 +1535,22 @@ function fishFor(spot, month, temp) {
     if (temp !== null && (temp < f.temp[0] - 1 || temp > f.temp[1] + 1)) return false;
     return true;
   });
+}
+
+/* Postes ajoutés par l'utilisateur. Ils vivent sur l'appareil et se
+   comportent en tout point comme les postes fournis. */
+const MINE_STORE = "glenan.spots.v1";
+let mySpots = [];
+try {
+  const raw = JSON.parse(localStorage.getItem(MINE_STORE) || "[]");
+  if (Array.isArray(raw)) mySpots = raw.filter(s =>
+    s && typeof s.n === "string" && typeof s.lat === "number" && typeof s.lon === "number");
+} catch { /* stockage indisponible */ }
+
+function allSpots() { return SPOTS.concat(mySpots); }
+
+function saveMySpots() {
+  try { localStorage.setItem(MINE_STORE, JSON.stringify(mySpots)); } catch { /* ignoré */ }
 }
 
 /** Niveau et sens de la marée : 0 à basse mer, 1 à pleine mer. */
@@ -1523,7 +1635,7 @@ function computePlan(days) {
     for (let t = +s0; t < +s0 + DAY; t += PLAN_STEP) {
       if (isToday && t < floor) continue;
       const env = at(t);
-      for (const spot of SPOTS) {
+      for (const spot of allSpots()) {
         const r = spotScore(spot, env.astro, env.sea, env.st, env.pf);
         if (!best || r.score > best.score) best = { score: r.score, spot, t, env, r };
       }
@@ -1610,8 +1722,9 @@ const yToLat = (y, z) => {
   return DEG * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 };
 
-const MAP_FIT = { lat: 47.8015, lon: -3.985, z: 11 };
-const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.15, e: -3.83 };
+const MAP_FIT = { lat: 47.8015, lon: -3.955, z: 11 };
+/* De l'embouchure de l'Odet à l'Aven, et jusqu'au sud de l'archipel. */
+const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.20, e: -3.68 };
 let mapView = { ...MAP_FIT };
 let pickedSpot = null;
 let showAllSpots = false;
@@ -1668,7 +1781,7 @@ function drawMap() {
   /* Marqueurs dont le centre tient dans le cadre : masqués par overflow, ceux
      qui en sortent resteraient cliquables par-dessus le reste de la page. */
   let visible = [];
-  SPOTS.forEach((spot, i) => {
+  allSpots().forEach((spot, i) => {
     const px = lonToX(spot.lon, z) - ox, py = latToY(spot.lat, z) - oy;
     if (px < 0 || px > W || py < 0 || py > H) return;
     visible.push({ spot, i, px, py, r: spotScore(spot, astro, sea, st, pf) });
@@ -1782,6 +1895,47 @@ function renderPlan() {
     : "Créneaux calculés sur l'activité, la marée et l'état de la mer prévu à chaque poste.";
 }
 
+/** Classement des postes à l'instant affiché, pour choisir sans chercher sur
+ *  la carte. Un appui sur une ligne recentre la carte dessus. */
+function renderSpotRank() {
+  const s = summaryFor(dayAt(picked));
+  const isToday = picked === 0;
+  const at = scrubT || (isToday ? new Date() : s.peakAt);
+  const astro = scoreAt(at, s.ctx).total;
+  const sea = seaAt(at, isToday);
+  const st = tideState(+at, s.ctx.tides);
+  const pf = pressureFactor(pressureTrend(at));
+  const temp = seaTemp(at);
+  const month = s.date.getMonth() + 1;
+
+  const ranked = allSpots()
+    .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
+    .sort((a, b) => b.r.score - a.r.score)
+    .slice(0, 5);
+
+  el("spot-rank").innerHTML = ranked.map(({ sp, i, r }) => {
+    const fish = fishFor(sp, month, temp).map(f => f.n).slice(0, 2).join(", ");
+    return `<button type="button" class="rank-row" data-spot="${i}">
+      <span class="rank-val" style="color:${ratingColor(r.score)}">${r.score}</span>
+      <span class="rank-body">
+        <span class="rank-name">${sp.n}</span>
+        <span class="rank-sub">${sp.boat ? "bateau" : "du bord"} · ${fish || "hors saison"}</span>
+      </span>
+    </button>`;
+  }).join("");
+
+  for (const btn of el("spot-rank").querySelectorAll(".rank-row")) {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.dataset.spot);
+      pickedSpot = i;
+      const sp = allSpots()[i];
+      mapView = { lat: sp.lat, lon: sp.lon, z: Math.max(mapView.z, 13) };
+      render();
+      el("map-frame").scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }
+}
+
 function renderSpotDetail() {
   const host = el("spot-detail");
   if (pickedSpot === null) {
@@ -1792,7 +1946,7 @@ function renderSpotDetail() {
     const sea = seaAt(at, isToday);
     const st = tideState(+at, s.ctx.tides);
     const pf = pressureFactor(pressureTrend(at));
-    const best = SPOTS
+    const best = allSpots()
       .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
       .sort((a, b) => b.r.score - a.r.score)[0];
     host.innerHTML = `<div class="spot-card">
@@ -1805,7 +1959,7 @@ function renderSpotDetail() {
     return;
   }
 
-  const spot = SPOTS[pickedSpot];
+  const spot = allSpots()[pickedSpot];
   const s = summaryFor(dayAt(picked));
   const isToday = picked === 0;
   const at = scrubT || (isToday ? new Date() : s.peakAt);
@@ -1822,6 +1976,7 @@ function renderSpotDetail() {
     `<span class="spot-tag">${TIDE_LABEL[spot.tide]}</span>`,
     `<span class="spot-tag">ouvert au ${compassName(spot.facing).toLowerCase()}</span>`,
   ];
+  if (spot.mine)  tags.push(`<span class="spot-tag" style="color:var(--accent);border-color:var(--accent)">mon spot</span>`);
   if (spot.check) tags.push(`<span class="spot-tag is-warn">position à confirmer</span>`);
   if (spot.warn)  tags.push(`<span class="spot-tag is-warn">réglementé</span>`);
   tags.push(`<span class="spot-tag">${spot.kind} · ~${spot.depth} m</span>`);
@@ -1857,7 +2012,18 @@ function renderSpotDetail() {
     ${targetsHtml}
     <p class="note" style="margin:0">${why}</p>
     ${spot.warn ? `<p class="note" style="margin:.45rem 0 0;color:var(--amber)">${spot.warn}</p>` : ""}
+    ${spot.mine ? `<button type="button" class="link-btn" id="spot-del" style="color:var(--coral)">Supprimer ce spot</button>` : ""}
   </div>`;
+
+  const del = el("spot-del");
+  if (del) del.addEventListener("click", () => {
+    const idx = pickedSpot - SPOTS.length;
+    if (idx >= 0) { mySpots.splice(idx, 1); saveMySpots(); }
+    pickedSpot = null;
+    planCache = null;
+    render();
+  });
+  return;
 }
 
 function bindMap() {
@@ -1918,6 +2084,36 @@ function bindMap() {
   el("map-in").addEventListener("click",  () => { mapView.z++; clampView(); drawMap(); });
   el("map-out").addEventListener("click", () => { mapView.z--; clampView(); drawMap(); });
   el("map-fit").addEventListener("click", () => { mapView = { ...MAP_FIT }; pickedSpot = null; render(); });
+  /* Ajout d'un poste au centre de la carte. */
+  const form = el("add-form");
+  el("map-add").addEventListener("click", () => {
+    form.hidden = !form.hidden;
+    if (!form.hidden) { el("add-name").focus(); }
+  });
+  el("add-cancel").addEventListener("click", () => { form.hidden = true; el("add-name").value = ""; });
+  el("add-save").addEventListener("click", () => {
+    const name = el("add-name").value.trim();
+    if (!name) { el("add-name").focus(); return; }
+    mySpots.push({
+      n: name,
+      lat: mapView.lat, lon: mapView.lon,
+      facing: Number(el("add-facing").value),
+      shelter: 0.25,
+      tide: el("add-tide").value,
+      boat: el("add-boat").value === "1",
+      kind: el("add-kind").value,
+      depth: 10,
+      mine: true,
+      d: "Poste que vous avez enregistré.",
+    });
+    saveMySpots();
+    el("add-name").value = "";
+    form.hidden = true;
+    pickedSpot = allSpots().length - 1;
+    planCache = null;
+    render();
+  });
+
   el("map-all").addEventListener("click", () => {
     showAllSpots = !showAllSpots;
     el("map-all").textContent = showAllSpots ? "Ne garder que les bons postes" : "Voir tous les postes";
@@ -2188,6 +2384,7 @@ function render() {
   renderPlan();
   drawMap();
   renderSpotDetail();
+  renderSpotRank();
   el("map-note").textContent =
     "Positions approximatives de lieux réels, pas des points de pêche relevés. La chasse "
     + "sous-marine est interdite sur la majeure partie de l'archipel (arrêté 192/97). "
