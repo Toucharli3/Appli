@@ -391,7 +391,10 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 
     <!-- Marée -->
     <section class="panel stack-s" aria-labelledby="tide-h">
-      <h2 class="eyebrow" id="tide-h">Marée</h2>
+      <div class="sea-head">
+        <h2 class="eyebrow" id="tide-h">Marée</h2>
+        <span class="sea-src" id="tide-src">horaires estimés</span>
+      </div>
       <div>
         <div class="tide-head">
           <div class="tide-coef" id="tide-coef">—</div>
@@ -408,11 +411,7 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       </div>
       <hr class="rule">
       <div class="tide-grid" id="tide-times"></div>
-      <p class="note">
-        Horaires <strong>estimés</strong> à partir du passage de la Lune au méridien et de
-        l'établissement du port (3 h 40 pour la baie de La Forêt) — comptez ± 30 min.
-        Pour naviguer, référez-vous à l'annuaire du SHOM.
-      </p>
+      <p class="note" id="tide-method"></p>
     </section>
 
     <!-- Lune & Soleil -->
@@ -616,18 +615,49 @@ function tideBand(c) {
 const LUNITIDAL = (3 * 60 + 40) * 60000;
 const SEMI_TIDE = 6 * 3600000 + 12.5 * 60000;
 
-function tideTimes(date, lng) {
+/** Suite des étales, débordant la journée pour permettre l'interpolation aux
+ *  deux bords. Remplacée par la prévision de niveau lorsqu'elle est disponible. */
+function tideSeries(date, lng) {
+  if (liveTide) {
+    const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
+    const lo = +s0 - 20 * 3600000, hi = +s0 + 44 * 3600000;
+    const sub = liveTide.filter(e => +e.time >= lo && +e.time <= hi);
+    if (sub.length >= 3) return sub;
+  }
   const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
-  const from = new Date(s0.getTime() - 14 * 3600000);
-  const tr = [...moonTransits(from, 52, lng, "upper"), ...moonTransits(from, 52, lng, "lower")];
+  const from = new Date(+s0 - 20 * 3600000);
+  const tr = [...moonTransits(from, 68, lng, "upper"), ...moonTransits(from, 68, lng, "lower")];
   const ev = [];
   for (const t of tr) {
-    const hw = new Date(t.getTime() + LUNITIDAL);
+    const hw = new Date(+t + LUNITIDAL);
     ev.push({ type: "PM", time: hw });
-    ev.push({ type: "BM", time: new Date(hw.getTime() + SEMI_TIDE) });
+    ev.push({ type: "BM", time: new Date(+hw + SEMI_TIDE) });
   }
-  const end = s0.getTime() + DAY;
-  return ev.filter(e => +e.time >= +s0 && +e.time < end).sort((a, b) => a.time - b.time);
+  return ev.sort((a, b) => a.time - b.time);
+}
+
+/** Les étales tombant dans la journée civile, pour l'affichage. */
+function tideTimes(date, series) {
+  const s0 = new Date(date); s0.setHours(0, 0, 0, 0);
+  const end = +s0 + DAY;
+  return series.filter(e => +e.time >= +s0 && +e.time < end);
+}
+
+/**
+ * Intensité du courant à un instant donné, de 0 à 1.
+ * Nulle à l'étale, maximale à mi-marée : c'est l'eau qui bouge qui déclenche
+ * l'alimentation, pas la hauteur d'eau en soi. Le flot est légèrement favorisé,
+ * l'eau qui monte ramenant le poisson sur les zones de gagnage.
+ */
+function tidalFlow(t, series) {
+  for (let i = 0; i < series.length - 1; i++) {
+    const a = +series[i].time, b = +series[i + 1].time;
+    if (t >= a && t < b) {
+      const f = Math.abs(Math.sin(PI * (t - a) / (b - a)));
+      return f * (series[i].type === "BM" ? 1 : 0.9);
+    }
+  }
+  return 0.5;
 }
 
 /* ═══ Solunaire & score ════════════════════════════════════════════════ */
@@ -663,7 +693,12 @@ function scoreAt(date, ctx) {
   }
   sol *= lunarStrength(ctx.phase);
   const moon = Math.pow(Math.abs(Math.cos(ctx.phase * 2 * PI)), 0.5);
-  const tide = Math.max(0, Math.min(1, (ctx.coef - 30) / 70));
+
+  /* La vitesse du courant est proportionnelle à l'amplitude : un fort
+     coefficient à l'étale ne vaut pas un fort coefficient à mi-marée, mais
+     garde du crédit car l'eau va bientôt bouger. */
+  const amp  = Math.max(0, Math.min(1, (ctx.coef - 30) / 70));
+  const tide = amp * (0.45 + 0.55 * tidalFlow(t, ctx.tides));
   let light = 0;
   if (ctx.sun.sunrise) light = Math.max(light, bell(t, +ctx.sun.sunrise, 5400000));
   if (ctx.sun.sunset)  light = Math.max(light, bell(t, +ctx.sun.sunset,  5400000));
@@ -678,13 +713,15 @@ function scoreAt(date, ctx) {
 }
 
 function dayContext(date, lat, lng) {
+  const ill = moonIllumination(date);
   return {
     windows: solunarWindows(date, lat, lng),
-    phase: moonIllumination(date).phase,
-    illum: moonIllumination(date).fraction,
+    phase: ill.phase,
+    illum: ill.fraction,
     coef: tideCoefficient(date),
     sun: sunTimes(date, lat, lng),
     moon: moonRiseSet(date, lat, lng),
+    tides: tideSeries(date, lng),
   };
 }
 
@@ -794,7 +831,8 @@ const fr = (n, digits = 1) => n.toFixed(digits).replace(".", ",");
  */
 const SEA_STORE = "glenan.sea.v1";
 let manualSea = { wind: 15, dir: 270, wave: 0.8, period: 8 };
-let liveSea = null;   // Map "AAAA-MM-JJTHH" -> {wind,dir,wave,period}
+let liveSea = null;    // Map "AAAA-MM-JJTHH" -> {wind,dir,wave,period}
+let liveTide = null;   // [{type,time,h}] issus du niveau prévu, sinon null
 
 try {
   const saved = JSON.parse(localStorage.getItem(SEA_STORE) || "null");
@@ -817,6 +855,32 @@ function seaAt(when, isToday) {
 
 const plausible = (v, lo, hi) => v === null || (typeof v === "number" && isFinite(v) && v >= lo && v <= hi);
 
+/**
+ * Étales déduites d'une série de niveau horaire. Un échantillonnage à l'heure
+ * ne situerait l'étale qu'à ± 30 min ; on affine par le sommet de la parabole
+ * passant par les trois points encadrants, ce qui ramène l'erreur à quelques
+ * minutes.
+ */
+function extremaFrom(times, levels) {
+  const out = [];
+  for (let i = 1; i < levels.length - 1; i++) {
+    const p = levels[i - 1], c = levels[i], n = levels[i + 1];
+    if (p === null || c === null || n === null) continue;
+    const high = c > p && c >= n, low = c < p && c <= n;
+    if (!high && !low) continue;
+    const denom = p - 2 * c + n;
+    const shift = Math.abs(denom) < 1e-9 ? 0 : Math.max(-0.5, Math.min(0.5, 0.5 * (p - n) / denom));
+    const base = new Date(times[i]);
+    if (isNaN(+base)) continue;
+    out.push({
+      type: high ? "PM" : "BM",
+      time: new Date(+base + shift * 3600000),
+      h: c - 0.25 * (p - n) * shift,
+    });
+  }
+  return out.sort((a, b) => a.time - b.time);
+}
+
 /** Tente la prévision automatique. Toute réponse de forme inattendue ou de
  *  valeurs invraisemblables est rejetée : mieux vaut la saisie manuelle
  *  qu'un chiffre faux affiché avec aplomb. */
@@ -825,7 +889,7 @@ async function loadForecast() {
     + `&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh`
     + `&timezone=Europe%2FParis&forecast_days=14`;
   const sea = `https://marine-api.open-meteo.com/v1/marine?latitude=${SEA_LAT}&longitude=${SEA_LNG}`
-    + `&hourly=wave_height,wave_period&timezone=Europe%2FParis&forecast_days=14`;
+    + `&hourly=wave_height,wave_period,sea_level_height_msl&timezone=Europe%2FParis&forecast_days=14`;
 
   const a = await fetch(air).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
   const t = a?.hourly?.time, ws = a?.hourly?.wind_speed_10m, wd = a?.hourly?.wind_direction_10m;
@@ -841,7 +905,15 @@ async function loadForecast() {
         m.hourly.wave_period?.every(v => plausible(v, 0, 30))) {
       wh = m.hourly.wave_height; wp = m.hourly.wave_period;
     }
-  } catch { /* houle indisponible : on continue avec le vent seul */ }
+    /* Niveau de la mer : s'il est fourni, il donne de vraies étales, bien plus
+       fiables que l'estimation par l'établissement du port. */
+    const lvl = m?.hourly?.sea_level_height_msl;
+    if (Array.isArray(lvl) && lvl.length === m.hourly.time.length &&
+        lvl.every(v => plausible(v, -8, 8)) && lvl.some(v => v !== null)) {
+      const ext = extremaFrom(m.hourly.time, lvl);
+      if (ext.length >= 3) liveTide = ext;
+    }
+  } catch { /* houle ou niveau indisponibles : on continue avec le vent seul */ }
 
   const map = new Map();
   for (let i = 0; i < t.length; i++) {
@@ -1193,9 +1265,14 @@ function render() {
   el("tide-band").textContent = band.label;
   el("tide-note").textContent = band.note;
   el("tide-pin").style.left = `${((ctx.coef - 20) / 100) * 100}%`;
-  el("tide-times").innerHTML = tideTimes(s.date, LNG).map(e =>
+  el("tide-times").innerHTML = tideTimes(s.date, ctx.tides).map(e =>
     `<div class="tide-cell"><span class="tide-cell-k">${e.type === "PM" ? "Pleine mer" : "Basse mer"}</span>
      <span class="tide-cell-v">${hm(e.time)}</span></div>`).join("");
+  el("tide-src").textContent = liveTide ? "niveau prévu" : "horaires estimés";
+  el("tide-src").classList.toggle("is-live", !!liveTide);
+  el("tide-method").textContent = liveTide
+    ? "Étales calculées à partir du niveau de la mer prévu par Open-Meteo. Le coefficient reste reconstruit par les composantes harmoniques."
+    : "Horaires estimés à partir du passage de la Lune au méridien et de l'établissement du port (3 h 40 pour la baie de La Forêt) — comptez ± 30 min. Pour naviguer, référez-vous à l'annuaire du SHOM.";
 
   /* lune */
   el("moon-lit").setAttribute("d", moonPath(ctx.phase, 19));
@@ -1274,7 +1351,13 @@ setInterval(() => { if (picked === 0) render(); }, 60000);
 /* La prévision n'aboutit que si l'hôte autorise l'appel réseau ; sinon la
    saisie manuelle reste en place sans que rien ne casse. */
 loadForecast()
-  .then(map => { liveSea = map; render(); })
+  .then(map => {
+    liveSea = map;
+    /* Les contextes déjà calculés portent les étales estimées : on les jette
+       pour qu'ils soient reconstruits sur le niveau prévu. */
+    cache.clear();
+    render();
+  })
   .catch(() => { /* silencieux : la saisie manuelle est déjà affichée */ });
 
 let rt;
