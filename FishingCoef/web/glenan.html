@@ -439,6 +439,7 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <div>
         <div class="sea-state" id="sea-state">—</div>
         <p class="note" id="sea-note" style="margin-top:.15rem"></p>
+        <p class="note" id="sea-extra" style="margin-top:.25rem;color:var(--ink)" hidden></p>
       </div>
       <div id="sea-alert-holder"></div>
       <hr class="rule">
@@ -529,6 +530,16 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <hr class="rule">
       <div class="tide-grid" id="tide-times"></div>
       <p class="note" id="tide-method"></p>
+      <div class="ctl">
+        <label class="ctl-label" for="in-coef">Officiel</label>
+        <input type="range" id="in-coef" min="19" max="120" step="1" value="19">
+        <span class="ctl-val" id="out-coef">—</span>
+      </div>
+      <p class="note">
+        Ma valeur est reconstruite à ± 5 près. Si vous relevez le coefficient officiel
+        du jour sur le <a href="https://maree.shom.fr/" target="_blank" rel="noopener">SHOM</a>,
+        reportez-le ici : il prendra le pas sur le calcul. Curseur à gauche pour revenir à l'estimation.
+      </p>
     </section>
 
     <!-- Lune & Soleil -->
@@ -857,13 +868,26 @@ function scoreAt(date, ctx) {
   };
 }
 
+/* Coefficients officiels relevés à la main, par date. Ils priment sur la
+   reconstruction harmonique, qui reste juste à ± 5 près. */
+const COEF_STORE = "glenan.coef.v1";
+let officialCoef = {};
+try { officialCoef = JSON.parse(localStorage.getItem(COEF_STORE) || "{}") || {}; } catch { /* ignoré */ }
+const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function coefFor(date) {
+  const v = officialCoef[dayKey(date)];
+  return typeof v === "number" ? v : tideCoefficient(date);
+}
+
 function dayContext(date, lat, lng) {
   const ill = moonIllumination(date);
   return {
     windows: solunarWindows(date, lat, lng),
     phase: ill.phase,
     illum: ill.fraction,
-    coef: tideCoefficient(date),
+    coef: coefFor(date),
+    coefOfficial: typeof officialCoef[dayKey(date)] === "number",
     sun: sunTimes(date, lat, lng),
     moon: moonRiseSet(date, lat, lng),
     tides: tideSeries(date, lng),
@@ -1004,6 +1028,46 @@ function seaAt(when, isToday) {
 
 const plausible = (v, lo, hi) => v === null || (typeof v === "number" && isFinite(v) && v >= lo && v <= hi);
 
+/** Variation de pression sur les trois heures précédentes, en hPa. */
+function pressureTrend(when) {
+  if (!liveSea) return null;
+  const now = liveSea.get(hourKey(when));
+  const before = liveSea.get(hourKey(new Date(+when - 3 * 3600000)));
+  if (!now || !before || now.press === null || before.press === null) return null;
+  return now.press - before.press;
+}
+
+/**
+ * Une pression qui chute annonce une dégradation et déclenche l'alimentation ;
+ * une remontée franche après le front la coupe net. L'effet est réel mais
+ * secondaire : on le garde en correction douce plutôt qu'en terme du barème,
+ * ce qui laisse intact l'étalonnage de la note sur 100.
+ */
+function pressureFactor(trend) {
+  if (trend === null) return 1;
+  if (trend <= -2.5) return 1.10;
+  if (trend <= -0.8) return 1.05;
+  if (trend <   0.8) return 1.00;
+  if (trend <   2.5) return 0.94;
+  return 0.88;
+}
+
+function pressureLabel(trend) {
+  if (trend === null) return null;
+  if (trend <= -2.5) return "chute marquée";
+  if (trend <= -0.8) return "en baisse";
+  if (trend <   0.8) return "stable";
+  if (trend <   2.5) return "en hausse";
+  return "hausse marquée";
+}
+
+/** Température de l'eau à un instant, si la prévision la fournit. */
+function seaTemp(when) {
+  if (!liveSea) return null;
+  const v = liveSea.get(hourKey(when));
+  return v && v.temp !== null ? v.temp : null;
+}
+
 /**
  * Étales déduites d'une série de niveau horaire. Un échantillonnage à l'heure
  * ne situerait l'étale qu'à ± 30 min ; on affine par le sommet de la parabole
@@ -1035,10 +1099,11 @@ function extremaFrom(times, levels) {
  *  qu'un chiffre faux affiché avec aplomb. */
 async function loadForecast() {
   const air = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}`
-    + `&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh`
+    + `&hourly=wind_speed_10m,wind_direction_10m,pressure_msl&wind_speed_unit=kmh`
     + `&timezone=Europe%2FParis&forecast_days=14`;
   const sea = `https://marine-api.open-meteo.com/v1/marine?latitude=${SEA_LAT}&longitude=${SEA_LNG}`
-    + `&hourly=wave_height,wave_period,sea_level_height_msl&timezone=Europe%2FParis&forecast_days=14`;
+    + `&hourly=wave_height,wave_period,sea_level_height_msl,sea_surface_temperature`
+    + `&timezone=Europe%2FParis&forecast_days=14`;
 
   const a = await fetch(air).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
   const t = a?.hourly?.time, ws = a?.hourly?.wind_speed_10m, wd = a?.hourly?.wind_direction_10m;
@@ -1046,7 +1111,13 @@ async function loadForecast() {
   if (t.length === 0 || t.length !== ws.length || t.length !== wd.length) throw new Error("longueurs incohérentes");
   if (!ws.every(v => plausible(v, 0, 250)) || !wd.every(v => plausible(v, 0, 360))) throw new Error("valeurs hors plage");
 
-  let wh = null, wp = null;
+  /* La pression n'est pas indispensable : si elle manque, on continue sans. */
+  const pr = Array.isArray(a.hourly.pressure_msl)
+    && a.hourly.pressure_msl.length === t.length
+    && a.hourly.pressure_msl.every(v => plausible(v, 850, 1100))
+      ? a.hourly.pressure_msl : null;
+
+  let wh = null, wp = null, sst = null;
   try {
     const m = await fetch(sea).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
     if (Array.isArray(m?.hourly?.time) && m.hourly.time.length === t.length &&
@@ -1054,6 +1125,8 @@ async function loadForecast() {
         m.hourly.wave_period?.every(v => plausible(v, 0, 30))) {
       wh = m.hourly.wave_height; wp = m.hourly.wave_period;
     }
+    const T = m?.hourly?.sea_surface_temperature;
+    if (Array.isArray(T) && T.length === m.hourly.time.length && T.every(v => plausible(v, -2, 35))) sst = T;
     /* Niveau de la mer : s'il est fourni, il donne de vraies étales, bien plus
        fiables que l'estimation par l'établissement du port. */
     const lvl = m?.hourly?.sea_level_height_msl;
@@ -1072,6 +1145,8 @@ async function loadForecast() {
       wave:   wh && wh[i] !== null ? wh[i] : 0.8,
       period: wp && wp[i] !== null ? wp[i] : 8,
       estimatedWave: !wh,
+      press: pr ? pr[i] : null,
+      temp:  sst && sst[i] !== null ? sst[i] : null,
     });
   }
   if (map.size === 0) throw new Error("aucune heure exploitable");
@@ -1282,52 +1357,89 @@ function bindScrub() {
  */
 const SPOTS = [
   { n: "Pointe de Mousterlin", lat: 47.8497, lon: -4.0350, facing: 180, shelter: 0.10,
-    tide: "basse", boat: false, sp: "Bar, vieille, pêche à pied",
+    tide: "basse", boat: false, kind: "estran", depth: 4, sp: "Bar, vieille, pêche à pied",
     d: "Vaste estran rocheux qui découvre loin. Se pêche à basse mer, prudence au retour du flot." },
   { n: "Cap Coz", lat: 47.8747, lon: -3.9975, facing: 200, shelter: 0.45,
-    tide: "flot", boat: false, sp: "Bar, dorade",
+    tide: "flot", boat: false, kind: "pointe", depth: 6, sp: "Bar, dorade",
     d: "Flèche sableuse à l'entrée de la baie. Le courant de flot sur la pointe concentre le bar." },
   { n: "Beg-Meil", lat: 47.8583, lon: -3.9917, facing: 150, shelter: 0.25,
-    tide: "toute", boat: false, sp: "Bar, vieille, maquereau",
+    tide: "toute", boat: false, kind: "herbier", depth: 8, sp: "Bar, vieille, maquereau",
     d: "Rochers et herbiers accessibles à pied. Départ des vedettes pour les Glénan." },
   { n: "Baie de La Forêt", lat: 47.8880, lon: -3.9660, facing: 190, shelter: 0.70,
-    tide: "haute", boat: false, sp: "Dorade royale, bar",
+    tide: "haute", boat: false, kind: "herbier", depth: 12, sp: "Dorade royale, bar",
     d: "Fonds sablo-vaseux bien abrités. Le repli quand ça souffle d'ouest." },
   { n: "Pointe du Cabellou", lat: 47.8550, lon: -3.9200, facing: 200, shelter: 0.30,
-    tide: "jusant", boat: false, sp: "Bar, lieu",
+    tide: "jusant", boat: false, kind: "pointe", depth: 12, sp: "Bar, lieu",
     d: "Pointe rocheuse à l'entrée de Concarneau. Le jusant y creuse de belles veines." },
   { n: "Digues de Concarneau", lat: 47.8700, lon: -3.9150, facing: 210, shelter: 0.75,
-    tide: "toute", boat: false, sp: "Bar, maquereau, seiche",
+    tide: "toute", boat: false, kind: "digue", depth: 8, sp: "Bar, maquereau, seiche",
     d: "Très abrité, pêchable par presque tout temps. Attention à la circulation des bateaux." },
   { n: "Île aux Moutons", lat: 47.7969, lon: -4.0328, facing: 200, shelter: 0.10,
-    tide: "toute", boat: true, sp: "Lieu jaune, bar, maquereau",
+    tide: "toute", boat: true, kind: "tombant", depth: 20, sp: "Lieu jaune, bar, maquereau",
     d: "Îlot isolé à mi-chemin des Glénan, entouré de tombants. Zone de nidification protégée." },
+  { n: "La Langue des Moutons", lat: 47.8100, lon: -4.0300, facing: 200, shelter: 0.08,
+    tide: "flot", boat: true, kind: "plateau", depth: 14, sp: "Bar, lieu jaune, maquereau",
+    d: "Plateau qui prolonge l'île vers le nord. Le courant qui passe dessus rassemble le poisson, "
+     + "surtout au flot. Position à confirmer sur la carte.", check: true },
   { n: "Les Pourceaux", lat: 47.7897, lon: -4.0470, facing: 210, shelter: 0.05,
-    tide: "toute", boat: true, sp: "Lieu jaune, congre",
+    tide: "toute", boat: true, kind: "tombant", depth: 25, sp: "Lieu jaune, congre",
     d: "Cailloux exposés au sud-ouest. Uniquement par mer maniable." },
   { n: "Guiriden", lat: 47.7331, lon: -3.9958, facing: 0, shelter: 0.20,
-    tide: "basse", boat: true, sp: "Bar, seiche",
+    tide: "basse", boat: true, kind: "estran", depth: 4, sp: "Bar, seiche",
     d: "Longue langue de sable qui découvre à basse mer, au nord de l'archipel." },
   { n: "Saint-Nicolas", lat: 47.7264, lon: -3.9992, facing: 200, shelter: 0.40,
-    tide: "toute", boat: true, sp: "Bar, seiche",
+    tide: "toute", boat: true, kind: "herbier", depth: 6, sp: "Bar, seiche",
     d: "Île principale de l'archipel.",
     warn: "Réserve naturelle : accès à l'île, à ses plages et aux îlots Enez ar Razed et Penneg Ern interdit du 1ᵉʳ avril au 31 août." },
   { n: "La Chambre", lat: 47.7220, lon: -3.9950, facing: 0, shelter: 0.80,
-    tide: "toute", boat: true, sp: "Seiche, bar",
+    tide: "toute", boat: true, kind: "herbier", depth: 8, sp: "Seiche, bar",
     d: "Plan d'eau central entre Saint-Nicolas et Cigogne. Très abrité, herbiers de zostères." },
   { n: "Fort Cigogne", lat: 47.7169, lon: -3.9933, facing: 180, shelter: 0.50,
-    tide: "toute", boat: true, sp: "Lieu jaune, congre",
+    tide: "toute", boat: true, kind: "tombant", depth: 14, sp: "Lieu jaune, congre",
     d: "Au centre de l'archipel, reconnaissable à son fort. Tombants alentour." },
   { n: "Penfret", lat: 47.7186, lon: -3.9522, facing: 90, shelter: 0.15,
-    tide: "toute", boat: true, sp: "Lieu jaune, bar",
+    tide: "toute", boat: true, kind: "tombant", depth: 22, sp: "Lieu jaune, bar",
     d: "Île la plus à l'est, avec son phare. Tombants profonds sur la face est." },
   { n: "Drénec", lat: 47.7222, lon: -4.0192, facing: 250, shelter: 0.25,
-    tide: "basse", boat: true, sp: "Bar, seiche",
+    tide: "basse", boat: true, kind: "estran", depth: 6, sp: "Bar, seiche",
     d: "Île ouest de l'archipel, sable et roche. Découvre largement au sud." },
   { n: "Le Loc'h", lat: 47.7147, lon: -4.0069, facing: 200, shelter: 0.20,
-    tide: "toute", boat: true, sp: "Lieu jaune, vieille",
+    tide: "toute", boat: true, kind: "tombant", depth: 16, sp: "Lieu jaune, vieille",
     d: "Sud-ouest de l'archipel, avec son étang. Roches éparses au large." },
 ];
+
+/*
+ * Quelles espèces viser sur un poste donné. On croise la saison, la
+ * température de l'eau quand elle est connue, la nature du fond et l'état de
+ * la marée. Les fourchettes thermiques sont des plages d'activité usuelles,
+ * pas des seuils stricts.
+ */
+const FISH = [
+  { n: "Bar",           temp: [10, 21], m: [3, 11], kinds: ["pointe","plateau","estran","digue","tombant"],
+    best: "dans le courant, aube et crépuscule" },
+  { n: "Lieu jaune",    temp: [8, 17],  m: [1, 12], kinds: ["tombant","plateau"],
+    best: "sur les accores, en dérive" },
+  { n: "Maquereau",     temp: [13, 22], m: [5, 10], kinds: ["tombant","plateau","pointe"],
+    best: "en surface, par bancs" },
+  { n: "Dorade royale", temp: [15, 23], m: [5, 10], kinds: ["herbier","estran"],
+    best: "sur le sable, pêche posée" },
+  { n: "Seiche",        temp: [11, 18], m: [3, 6],  kinds: ["herbier"],
+    best: "dans les zostères, en turlutte" },
+  { n: "Vieille",       temp: [9, 20],  m: [3, 12], kinds: ["estran","pointe","tombant"],
+    best: "au ras de la roche" },
+  { n: "Congre",        temp: [8, 22],  m: [1, 12], kinds: ["tombant","digue"],
+    best: "de nuit, sur gros coefficient" },
+];
+
+function fishFor(spot, month, temp) {
+  return FISH.filter(f => {
+    if (!f.kinds.includes(spot.kind)) return false;
+    if (month < f.m[0] || month > f.m[1]) return false;
+    /* Sans température mesurée on ne retient que la saison. */
+    if (temp !== null && (temp < f.temp[0] - 1 || temp > f.temp[1] + 1)) return false;
+    return true;
+  });
+}
 
 /** Niveau et sens de la marée : 0 à basse mer, 1 à pleine mer. */
 function tideState(t, series) {
@@ -1362,9 +1474,10 @@ function tideMatch(spot, st) {
   return 1;
 }
 
-function spotScore(spot, astro, sea, st) {
+function spotScore(spot, astro, sea, st, pf = 1) {
   const tm = tideMatch(spot, st);
-  if (!sea) return { score: Math.round(astro * tm), tm, fish: null };
+  const cap100 = v => Math.max(0, Math.min(100, Math.round(v)));
+  if (!sea) return { score: cap100(astro * tm * pf), tm, fish: null };
 
   const local = spotSea(spot, sea);
   const fish = fishability(local);
@@ -1379,7 +1492,7 @@ function spotScore(spot, astro, sea, st) {
     unsafe = unsafe || offshore.unsafe;
   }
 
-  return { score: Math.round(astro * factor * tm), tm, fish, local, factor, unsafe, crossing };
+  return { score: cap100(astro * factor * tm * pf), tm, fish, local, factor, unsafe, crossing };
 }
 
 /* ═══ Programme ════════════════════════════════════════════════════════
@@ -1402,7 +1515,8 @@ function computePlan(days) {
     const at = t => {
       const when = new Date(t);
       const astro = scoreAt(when, ctx).total;
-      return { astro, sea: seaAt(when, isToday), st: tideState(t, ctx.tides) };
+      return { astro, sea: seaAt(when, isToday), st: tideState(t, ctx.tides),
+               pf: pressureFactor(pressureTrend(when)) };
     };
 
     let best = null;
@@ -1410,7 +1524,7 @@ function computePlan(days) {
       if (isToday && t < floor) continue;
       const env = at(t);
       for (const spot of SPOTS) {
-        const r = spotScore(spot, env.astro, env.sea, env.st);
+        const r = spotScore(spot, env.astro, env.sea, env.st, env.pf);
         if (!best || r.score > best.score) best = { score: r.score, spot, t, env, r };
       }
     }
@@ -1418,7 +1532,7 @@ function computePlan(days) {
 
     const scoreOf = t => {
       const env = at(t);
-      return spotScore(best.spot, env.astro, env.sea, env.st).score;
+      return spotScore(best.spot, env.astro, env.sea, env.st, env.pf).score;
     };
     /* On élargit tant que la note reste dans les 82 % du pic, puis on impose
        un créneau d'au moins 1 h 30 : un conseil à la demi-heure près serait
@@ -1547,6 +1661,7 @@ function drawMap() {
   const astro = scoreAt(at, ctx).total;
   const sea = seaAt(at, isToday);
   const st = tideState(+at, ctx.tides);
+  const pf = pressureFactor(pressureTrend(at));
 
   for (const old of layer.querySelectorAll(".pin")) old.remove();
 
@@ -1556,7 +1671,7 @@ function drawMap() {
   SPOTS.forEach((spot, i) => {
     const px = lonToX(spot.lon, z) - ox, py = latToY(spot.lat, z) - oy;
     if (px < 0 || px > W || py < 0 || py > H) return;
-    visible.push({ spot, i, px, py, r: spotScore(spot, astro, sea, st) });
+    visible.push({ spot, i, px, py, r: spotScore(spot, astro, sea, st, pf) });
   });
 
   /* On ne garde que les postes qui valent le déplacement : ceux qui tiennent
@@ -1676,8 +1791,9 @@ function renderSpotDetail() {
     const astro = scoreAt(at, s.ctx).total;
     const sea = seaAt(at, isToday);
     const st = tideState(+at, s.ctx.tides);
+    const pf = pressureFactor(pressureTrend(at));
     const best = SPOTS
-      .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st) }))
+      .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
       .sort((a, b) => b.r.score - a.r.score)[0];
     host.innerHTML = `<div class="spot-card">
       <div class="spot-card-head">
@@ -1696,7 +1812,8 @@ function renderSpotDetail() {
   const astro = scoreAt(at, s.ctx).total;
   const sea = seaAt(at, isToday);
   const st = tideState(+at, s.ctx.tides);
-  const r = spotScore(spot, astro, sea, st);
+  const pf = pressureFactor(pressureTrend(at));
+  const r = spotScore(spot, astro, sea, st, pf);
 
   const TIDE_LABEL = { basse: "à basse mer", haute: "à pleine mer", flot: "au flot",
                        jusant: "au jusant", toute: "à toute marée" };
@@ -1705,7 +1822,18 @@ function renderSpotDetail() {
     `<span class="spot-tag">${TIDE_LABEL[spot.tide]}</span>`,
     `<span class="spot-tag">ouvert au ${compassName(spot.facing).toLowerCase()}</span>`,
   ];
-  if (spot.warn) tags.push(`<span class="spot-tag is-warn">réglementé</span>`);
+  if (spot.check) tags.push(`<span class="spot-tag is-warn">position à confirmer</span>`);
+  if (spot.warn)  tags.push(`<span class="spot-tag is-warn">réglementé</span>`);
+  tags.push(`<span class="spot-tag">${spot.kind} · ~${spot.depth} m</span>`);
+
+  /* Ce qu'il y a à prendre ici, maintenant. */
+  const temp = seaTemp(at);
+  const month = s.date.getMonth() + 1;
+  const targets = fishFor(spot, month, temp);
+  const targetsHtml = targets.length
+    ? `<p class="note" style="margin:0 0 .35rem"><strong>${targets.map(f => f.n).join(", ")}</strong>`
+      + ` — ${targets[0].best}.</p>`
+    : `<p class="note" style="margin:0 0 .35rem">Rien de bien ciblé ici en cette saison.</p>`;
 
   let why;
   if (!r.fish) {
@@ -1726,7 +1854,7 @@ function renderSpotDetail() {
     </div>
     <div class="spot-tags">${tags.join("")}</div>
     <p class="note" style="margin:0 0 .35rem">${spot.d}</p>
-    <p class="note" style="margin:0 0 .35rem"><strong>${spot.sp}</strong></p>
+    ${targetsHtml}
     <p class="note" style="margin:0">${why}</p>
     ${spot.warn ? `<p class="note" style="margin:.45rem 0 0;color:var(--amber)">${spot.warn}</p>` : ""}
   </div>`;
@@ -1851,7 +1979,19 @@ function renderFactors(parts, fish) {
   el("factors").innerHTML = html;
 }
 
-function renderSea(fish, sea, isToday) {
+function renderSea(fish, sea, isToday, trend, temp) {
+  /* Température de l'eau et tendance barométrique : affichées seulement
+     lorsqu'une prévision les fournit. */
+  const extra = [];
+  if (temp !== null && temp !== undefined) extra.push(`Eau à ${fr(temp)} °C`);
+  const pl = pressureLabel(trend);
+  if (pl) {
+    const sign = trend > 0 ? "+" : "";
+    extra.push(`pression ${pl} (${sign}${fr(trend)} hPa/3 h)`);
+  }
+  el("sea-extra").textContent = extra.length ? cap(extra.join(", ")) + "." : "";
+  el("sea-extra").hidden = extra.length === 0;
+
   const hasLive = !!liveSea;
   const src = el("sea-src");
   src.textContent = overrideSea ? "valeurs forcées" : hasLive ? "prévision automatique" : "saisie manuelle";
@@ -1938,7 +2078,10 @@ function render() {
 
   const sea = seaAt(at, isToday);
   const fish = fishability(sea);
-  const shown = fish ? Math.round(astro * fish.factor) : astro;
+  const trend = pressureTrend(at);
+  const pf = pressureFactor(trend);
+  const shown = Math.max(0, Math.min(100,
+    Math.round((fish ? astro * fish.factor : astro) * pf)));
 
   /* verdict */
   const dayLabel = `${s.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} ${MONTH[s.date.getMonth()]}`;
@@ -1976,7 +2119,7 @@ function render() {
   }
   el("verdict-note").textContent = note;
 
-  renderSea(fish, sea, isToday);
+  renderSea(fish, sea, isToday, trend, seaTemp(at));
 
   /* courbe */
   drawCurve(ctx, dayCurve(s.date, ctx, 10), isToday ? now : null);
@@ -2012,8 +2155,13 @@ function render() {
   el("tide-times").innerHTML = tideTimes(s.date, ctx.tides).map(e =>
     `<div class="tide-cell"><span class="tide-cell-k">${e.type === "PM" ? "Pleine mer" : "Basse mer"}</span>
      <span class="tide-cell-v">${hm(e.time)}</span></div>`).join("");
-  el("tide-src").textContent = liveTide ? "niveau prévu" : "horaires estimés";
-  el("tide-src").classList.toggle("is-live", !!liveTide);
+  el("tide-src").textContent = ctx.coefOfficial
+    ? "coefficient officiel"
+    : liveTide ? "niveau prévu" : "horaires estimés";
+  el("tide-src").classList.toggle("is-live", !!liveTide || ctx.coefOfficial);
+  const official = officialCoef[dayKey(s.date)];
+  el("in-coef").value = String(typeof official === "number" ? official : 19);
+  el("out-coef").textContent = typeof official === "number" ? String(official) : "estimé";
   el("tide-method").textContent = liveTide
     ? "Étales calculées à partir du niveau de la mer prévu par Open-Meteo. Le coefficient reste reconstruit par les composantes harmoniques."
     : "Horaires estimés à partir du passage de la Lune au méridien et de l'établissement du port (3 h 40 pour la baie de La Forêt) — comptez ± 30 min. Pour naviguer, référez-vous à l'annuaire du SHOM.";
@@ -2102,6 +2250,19 @@ function bindControls() {
   };
 
   for (const c of [wind, dir, wave, per]) c.addEventListener("input", sync);
+
+  /* Coefficient officiel du jour affiché : sous 20 on revient à l'estimation. */
+  const coef = el("in-coef");
+  coef.addEventListener("input", () => {
+    const key = dayKey(dayAt(picked));
+    const v = Number(coef.value);
+    if (v < 20) delete officialCoef[key];
+    else officialCoef[key] = v;
+    try { localStorage.setItem(COEF_STORE, JSON.stringify(officialCoef)); } catch { /* ignoré */ }
+    cache.clear();
+    planCache = null;
+    render();
+  });
 
   el("sea-toggle").addEventListener("click", () => {
     if (!overrideSea) {
