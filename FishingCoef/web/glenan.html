@@ -127,7 +127,9 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 
 /* ── Courbe ────────────────────────────────────────────────────────────── */
 .curve-holder { position: relative; margin: .3rem -.35rem 0; }
-#curve { display: block; width: 100%; height: 140px; }
+/* pan-y laisse le défilement vertical au navigateur et nous réserve le
+   glissement horizontal pour déplacer le curseur. */
+#curve { display: block; width: 100%; height: 140px; touch-action: pan-y; cursor: crosshair; }
 .curve-axis {
   display: flex; justify-content: space-between;
   font-family: var(--f-data); font-size: .62rem; color: var(--ink-faint);
@@ -279,6 +281,75 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .species-verdict { font-size: .72rem; white-space: nowrap; }
 .species-where { font-size: .7rem; color: var(--ink-faint); display: block; margin-top: .05rem; }
 
+/* ── Carte ─────────────────────────────────────────────────────────────── */
+.map-frame {
+  /* 400 px de haut : les postes s'étalent sur 19 km du nord de la baie au sud
+     de l'archipel, ce qui ne tient pas dans une carte plus courte au zoom 11. */
+  position: relative; height: 400px; margin: 0 -1rem;
+  overflow: hidden; background: var(--sunken);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.map-frame.is-dragging { cursor: grabbing; }
+#map-layer { position: absolute; inset: 0; will-change: transform; }
+#map-layer img {
+  position: absolute; width: 256px; height: 256px; pointer-events: none;
+  /* Les tuiles routières sont claires. En thème sombre on applique
+     l'inversion habituelle — invert puis rotation de teinte d'un demi-tour,
+     qui rend le fond sombre en conservant la polarité des couleurs, l'eau
+     restant bleutée. */
+  filter: grayscale(.3) saturate(.85);
+}
+:root[data-theme="dark"] #map-layer img {
+  filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) #map-layer img {
+    filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75);
+  }
+}
+.pin {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid var(--ground); padding: 0; cursor: pointer;
+  font: inherit; font-size: .62rem; font-weight: 700; color: #06121A;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+.pin.is-boat { border-style: dashed; }
+.pin.is-picked { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 5; }
+.pin-count {
+  position: absolute; top: -5px; right: -7px;
+  background: var(--ink); color: var(--ground);
+  border-radius: 7px; padding: 0 3px; min-width: 14px;
+  font-size: .52rem; line-height: 13px; text-align: center;
+}
+.map-tools { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; }
+.map-btn {
+  width: 30px; height: 30px; border-radius: 3px; cursor: pointer;
+  background: var(--raised); border: 1px solid var(--line); color: var(--ink);
+  font: inherit; font-size: 1rem; line-height: 1;
+}
+.map-credit {
+  position: absolute; bottom: 0; right: 0; font-size: .55rem;
+  background: color-mix(in srgb, var(--ground) 78%, transparent);
+  color: var(--ink-dim); padding: 1px 5px; border-top-left-radius: 3px;
+}
+.map-credit a { color: inherit; }
+.map-legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
+.map-legend span { display: flex; align-items: center; gap: .35rem; font-size: .68rem; color: var(--ink-dim); }
+.map-legend i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+.spot-card { background: var(--sunken); border-radius: 4px; padding: .7rem .8rem; }
+.spot-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.spot-card-name { font-family: var(--f-display); font-size: 1.05rem; }
+.spot-card-score { font-family: var(--f-data); font-size: 1.5rem; font-weight: 700; }
+.spot-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: .45rem 0 .35rem; }
+.spot-tag {
+  font-size: .6rem; letter-spacing: .05em; text-transform: uppercase;
+  border: 1px solid var(--line); border-radius: 2px; padding: .12rem .35rem; color: var(--ink-dim);
+}
+.spot-tag.is-warn { color: var(--amber); border-color: var(--amber); }
+
 /* ── Notes ─────────────────────────────────────────────────────────────── */
 .note { font-size: .76rem; color: var(--ink-dim); line-height: 1.6; }
 .note strong { color: var(--ink); font-weight: 600; }
@@ -302,7 +373,10 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 
     <!-- Verdict -->
     <section class="panel stack-s" aria-labelledby="verdict-h">
-      <div class="verdict-when" id="verdict-when">Maintenant</div>
+      <div class="sea-head">
+        <span class="verdict-when" id="verdict-when">Maintenant</span>
+        <button type="button" class="link-btn" id="scrub-reset" hidden>Revenir à maintenant</button>
+      </div>
       <div class="verdict">
         <div>
           <div class="verdict-score" id="score">—</div>
@@ -469,6 +543,38 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       </section>
     </div>
 
+    <!-- Carte des postes -->
+    <section class="panel stack-s" aria-labelledby="map-h">
+      <div>
+        <h2 class="eyebrow" id="map-h">Où aller maintenant</h2>
+        <p class="note" style="margin:.3rem 0 0">
+          Chaque poste est noté pour l'heure affichée, selon son exposition au vent et
+          l'état de la marée. Touchez un marqueur.
+        </p>
+      </div>
+
+      <div class="map-frame" id="map-frame">
+        <div id="map-layer"></div>
+        <div class="map-tools">
+          <button type="button" class="map-btn" id="map-in"  aria-label="Zoomer">+</button>
+          <button type="button" class="map-btn" id="map-out" aria-label="Dézoomer">−</button>
+          <button type="button" class="map-btn" id="map-fit" aria-label="Vue d'ensemble">⤢</button>
+        </div>
+        <div class="map-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
+      </div>
+
+      <div class="map-legend">
+        <span><i style="background:var(--accent)"></i>Favorable</span>
+        <span><i style="background:var(--amber)"></i>Moyen</span>
+        <span><i style="background:var(--coral)"></i>À éviter</span>
+        <span><i style="border:1px dashed var(--ink-dim);background:none"></i>Accès bateau</span>
+      </div>
+
+      <div id="spot-detail"></div>
+
+      <p class="note" id="map-note"></p>
+    </section>
+
     <!-- Espèces -->
     <section class="panel stack-s" aria-labelledby="sp-h">
       <div>
@@ -476,12 +582,6 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
         <p class="note" style="margin:.3rem 0 0">Évalué sur le coefficient et la saison du jour affiché.</p>
       </div>
       <div class="species" id="species"></div>
-    </section>
-
-    <!-- Postes -->
-    <section class="panel stack-s" aria-labelledby="spots-h">
-      <h2 class="eyebrow" id="spots-h">Postes autour de Fouesnant</h2>
-      <div class="stack-s" id="spots"></div>
     </section>
 
     <section class="colophon">
@@ -982,6 +1082,7 @@ function summaryFor(date) {
 
 let picked = 0;          // décalage en jours par rapport à aujourd'hui
 let drawProgress = 1;    // animation de tracé
+let scrubT = null;       // instant exploré sur la courbe, null = heure courante
 
 const el = id => document.getElementById(id);
 const dayAt = n => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
@@ -1057,17 +1158,448 @@ function drawCurve(ctx, pts, now) {
   }
   g.setLineDash([]);
 
-  /* instant présent */
+  /* instant présent, en trait fin */
   if (now && drawProgress >= 1) {
     const px = x(+now);
     if (px >= 0 && px <= W) {
-      g.strokeStyle = amber; g.lineWidth = 1.5;
+      g.strokeStyle = amber; g.lineWidth = 1.5; g.globalAlpha = scrubT ? 0.35 : 1;
       g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H - padB); g.stroke();
-      const v = scoreAt(now, ctx).total;
-      g.fillStyle = amber;
-      g.beginPath(); g.arc(px, y(v), 3.5, 0, 2 * PI); g.fill();
+      if (!scrubT) {
+        g.fillStyle = amber;
+        g.beginPath(); g.arc(px, y(scoreAt(now, ctx).total), 3.5, 0, 2 * PI); g.fill();
+      }
+      g.globalAlpha = 1;
     }
   }
+
+  /* curseur exploré, avec sa valeur */
+  if (scrubT && drawProgress >= 1) {
+    const px = x(+scrubT);
+    if (px >= 0 && px <= W) {
+      const v = scoreAt(scrubT, ctx).total;
+      const py = y(v);
+      const ink = cs.getPropertyValue("--ink").trim();
+      g.strokeStyle = ink; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H - padB); g.stroke();
+      g.fillStyle = accent; g.strokeStyle = cs.getPropertyValue("--ground").trim(); g.lineWidth = 2;
+      g.beginPath(); g.arc(px, py, 5, 0, 2 * PI); g.fill(); g.stroke();
+
+      /* étiquette de l'heure, maintenue dans le cadre */
+      const label = hm(scrubT);
+      g.font = "600 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      const tw = g.measureText(label).width + 10;
+      const bx = Math.max(0, Math.min(W - tw, px - tw / 2));
+      g.fillStyle = ink;
+      g.fillRect(bx, 0, tw, 15);
+      g.fillStyle = cs.getPropertyValue("--ground").trim();
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(label, bx + tw / 2, 8);
+    }
+  }
+}
+
+/* ── Exploration de la courbe ─────────────────────────────────────────── */
+function bindScrub() {
+  const cv = el("curve");
+
+  const timeAt = clientX => {
+    const r = cv.getBoundingClientRect();
+    const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    const s0 = new Date(dayAt(picked)); s0.setHours(0, 0, 0, 0);
+    /* arrondi à 5 min : le doigt est moins précis que le pixel */
+    const step = 5 * 60000;
+    return new Date(+s0 + Math.round((f * DAY) / step) * step);
+  };
+
+  let dragging = false;
+
+  cv.addEventListener("pointerdown", ev => {
+    dragging = true;
+    cv.setPointerCapture(ev.pointerId);
+    scrubT = timeAt(ev.clientX);
+    render();
+  });
+
+  cv.addEventListener("pointermove", ev => {
+    if (!dragging) return;
+    ev.preventDefault();
+    scrubT = timeAt(ev.clientX);
+    render();
+  });
+
+  const stop = ev => {
+    dragging = false;
+    if (cv.hasPointerCapture?.(ev.pointerId)) cv.releasePointerCapture(ev.pointerId);
+  };
+  cv.addEventListener("pointerup", stop);
+  cv.addEventListener("pointercancel", stop);
+
+  el("scrub-reset").addEventListener("click", () => { scrubT = null; render(); });
+}
+
+/* ═══ Postes ═══════════════════════════════════════════════════════════
+ * Positions approximatives de lieux réels, relevées de sources publiques et
+ * de la géographie du secteur — bonnes à quelques centaines de mètres, ce qui
+ * suffit à situer un poste sur la carte mais ne constitue pas un point de
+ * pêche relevé. `facing` est la direction vers laquelle le poste est ouvert :
+ * c'est elle qui décide s'il prend le vent de face ou s'il est sous le vent.
+ */
+const SPOTS = [
+  { n: "Pointe de Mousterlin", lat: 47.8497, lon: -4.0350, facing: 180, shelter: 0.10,
+    tide: "basse", boat: false, sp: "Bar, vieille, pêche à pied",
+    d: "Vaste estran rocheux qui découvre loin. Se pêche à basse mer, prudence au retour du flot." },
+  { n: "Cap Coz", lat: 47.8747, lon: -3.9975, facing: 200, shelter: 0.45,
+    tide: "flot", boat: false, sp: "Bar, dorade",
+    d: "Flèche sableuse à l'entrée de la baie. Le courant de flot sur la pointe concentre le bar." },
+  { n: "Beg-Meil", lat: 47.8583, lon: -3.9917, facing: 150, shelter: 0.25,
+    tide: "toute", boat: false, sp: "Bar, vieille, maquereau",
+    d: "Rochers et herbiers accessibles à pied. Départ des vedettes pour les Glénan." },
+  { n: "Baie de La Forêt", lat: 47.8880, lon: -3.9660, facing: 190, shelter: 0.70,
+    tide: "haute", boat: false, sp: "Dorade royale, bar",
+    d: "Fonds sablo-vaseux bien abrités. Le repli quand ça souffle d'ouest." },
+  { n: "Pointe du Cabellou", lat: 47.8550, lon: -3.9200, facing: 200, shelter: 0.30,
+    tide: "jusant", boat: false, sp: "Bar, lieu",
+    d: "Pointe rocheuse à l'entrée de Concarneau. Le jusant y creuse de belles veines." },
+  { n: "Digues de Concarneau", lat: 47.8700, lon: -3.9150, facing: 210, shelter: 0.75,
+    tide: "toute", boat: false, sp: "Bar, maquereau, seiche",
+    d: "Très abrité, pêchable par presque tout temps. Attention à la circulation des bateaux." },
+  { n: "Île aux Moutons", lat: 47.7969, lon: -4.0328, facing: 200, shelter: 0.10,
+    tide: "toute", boat: true, sp: "Lieu jaune, bar, maquereau",
+    d: "Îlot isolé à mi-chemin des Glénan, entouré de tombants. Zone de nidification protégée." },
+  { n: "Les Pourceaux", lat: 47.7897, lon: -4.0470, facing: 210, shelter: 0.05,
+    tide: "toute", boat: true, sp: "Lieu jaune, congre",
+    d: "Cailloux exposés au sud-ouest. Uniquement par mer maniable." },
+  { n: "Guiriden", lat: 47.7331, lon: -3.9958, facing: 0, shelter: 0.20,
+    tide: "basse", boat: true, sp: "Bar, seiche",
+    d: "Longue langue de sable qui découvre à basse mer, au nord de l'archipel." },
+  { n: "Saint-Nicolas", lat: 47.7264, lon: -3.9992, facing: 200, shelter: 0.40,
+    tide: "toute", boat: true, sp: "Bar, seiche",
+    d: "Île principale de l'archipel.",
+    warn: "Réserve naturelle : accès à l'île, à ses plages et aux îlots Enez ar Razed et Penneg Ern interdit du 1ᵉʳ avril au 31 août." },
+  { n: "La Chambre", lat: 47.7220, lon: -3.9950, facing: 0, shelter: 0.80,
+    tide: "toute", boat: true, sp: "Seiche, bar",
+    d: "Plan d'eau central entre Saint-Nicolas et Cigogne. Très abrité, herbiers de zostères." },
+  { n: "Fort Cigogne", lat: 47.7169, lon: -3.9933, facing: 180, shelter: 0.50,
+    tide: "toute", boat: true, sp: "Lieu jaune, congre",
+    d: "Au centre de l'archipel, reconnaissable à son fort. Tombants alentour." },
+  { n: "Penfret", lat: 47.7186, lon: -3.9522, facing: 90, shelter: 0.15,
+    tide: "toute", boat: true, sp: "Lieu jaune, bar",
+    d: "Île la plus à l'est, avec son phare. Tombants profonds sur la face est." },
+  { n: "Drénec", lat: 47.7222, lon: -4.0192, facing: 250, shelter: 0.25,
+    tide: "basse", boat: true, sp: "Bar, seiche",
+    d: "Île ouest de l'archipel, sable et roche. Découvre largement au sud." },
+  { n: "Le Loc'h", lat: 47.7147, lon: -4.0069, facing: 200, shelter: 0.20,
+    tide: "toute", boat: true, sp: "Lieu jaune, vieille",
+    d: "Sud-ouest de l'archipel, avec son étang. Roches éparses au large." },
+];
+
+/** Niveau et sens de la marée : 0 à basse mer, 1 à pleine mer. */
+function tideState(t, series) {
+  for (let i = 0; i < series.length - 1; i++) {
+    const a = +series[i].time, b = +series[i + 1].time;
+    if (t >= a && t < b) {
+      const f = (t - a) / (b - a);
+      const rising = series[i].type === "BM";
+      return {
+        level: rising ? (1 - Math.cos(PI * f)) / 2 : (1 + Math.cos(PI * f)) / 2,
+        rising,
+        flow: Math.abs(Math.sin(PI * f)),
+      };
+    }
+  }
+  return { level: 0.5, rising: true, flow: 0.5 };
+}
+
+/** Le même vent ne fait pas la même mer partout : seul un poste ouvert
+ *  dessus prend la houle de plein fouet. */
+function spotSea(spot, sea) {
+  const onshore = Math.max(0, Math.cos((sea.dir - spot.facing) * RAD));
+  const wave = sea.wave * (0.2 + 0.8 * onshore) * (1 - spot.shelter * 0.55);
+  return { wind: sea.wind, dir: sea.dir, wave, period: sea.period, onshore };
+}
+
+function tideMatch(spot, st) {
+  if (spot.tide === "basse")  return 1 - 0.55 * st.level;
+  if (spot.tide === "haute")  return 0.45 + 0.55 * st.level;
+  if (spot.tide === "flot")   return st.rising ? 1 : 0.62;
+  if (spot.tide === "jusant") return st.rising ? 0.62 : 1;
+  return 1;
+}
+
+function spotScore(spot, astro, sea, st) {
+  const tm = tideMatch(spot, st);
+  if (!sea) return { score: Math.round(astro * tm), tm, fish: null };
+
+  const local = spotSea(spot, sea);
+  const fish = fishability(local);
+  let factor = fish.factor, unsafe = fish.unsafe, crossing = false;
+
+  /* Un poste accessible seulement en bateau ne vaut pas mieux que la
+     traversée qui y mène : un mouillage abrité derrière une île reste hors
+     d'atteinte quand le large est démonté. */
+  if (spot.boat) {
+    const offshore = fishability(sea);
+    if (offshore.factor < factor) { factor = offshore.factor; crossing = true; }
+    unsafe = unsafe || offshore.unsafe;
+  }
+
+  return { score: Math.round(astro * factor * tm), tm, fish, local, factor, unsafe, crossing };
+}
+
+/* ═══ Carte ════════════════════════════════════════════════════════════
+ * Rendu de tuiles maison plutôt qu'une bibliothèque tierce : la page reste
+ * un fichier unique, sans dépendance à charger.
+ */
+const TILE = 256;
+const lonToX = (lon, z) => (lon + 180) / 360 * Math.pow(2, z) * TILE;
+const latToY = (lat, z) => {
+  const s = Math.sin(lat * RAD);
+  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * PI)) * Math.pow(2, z) * TILE;
+};
+const xToLon = (x, z) => x / (Math.pow(2, z) * TILE) * 360 - 180;
+const yToLat = (y, z) => {
+  const n = PI - 2 * PI * y / (Math.pow(2, z) * TILE);
+  return DEG * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+};
+
+const MAP_FIT = { lat: 47.8015, lon: -3.985, z: 11 };
+const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.15, e: -3.83 };
+let mapView = { ...MAP_FIT };
+let pickedSpot = null;
+
+function drawMap() {
+  const frame = el("map-frame"), layer = el("map-layer");
+  const W = frame.clientWidth, H = frame.clientHeight;
+  if (!W || !H) return;
+  const z = mapView.z;
+  const ox = lonToX(mapView.lon, z) - W / 2;
+  const oy = latToY(mapView.lat, z) - H / 2;
+
+  /* tuiles */
+  const max = Math.pow(2, z);
+  const seen = new Set();
+  const frag = document.createDocumentFragment();
+  const existing = new Map();
+  for (const img of layer.querySelectorAll("img")) existing.set(img.dataset.k, img);
+
+  for (let tx = Math.floor(ox / TILE); tx <= Math.floor((ox + W) / TILE); tx++) {
+    for (let ty = Math.floor(oy / TILE); ty <= Math.floor((oy + H) / TILE); ty++) {
+      if (ty < 0 || ty >= max) continue;
+      const wx = ((tx % max) + max) % max;
+      const k = `${z}/${wx}/${ty}`;
+      seen.add(k);
+      let img = existing.get(k);
+      if (!img) {
+        img = new Image();
+        img.dataset.k = k;
+        img.loading = "lazy";
+        img.alt = "";
+        img.src = `https://tile.openstreetmap.org/${z}/${wx}/${ty}.png`;
+        frag.appendChild(img);
+      }
+      img.style.left = `${tx * TILE - ox}px`;
+      img.style.top  = `${ty * TILE - oy}px`;
+    }
+  }
+  for (const [k, img] of existing) if (!seen.has(k)) img.remove();
+  layer.appendChild(frag);
+
+  /* marqueurs */
+  const s = summaryFor(dayAt(picked));
+  const ctx = s.ctx;
+  const isToday = picked === 0;
+  const at = scrubT || (isToday ? new Date() : s.peakAt);
+  const astro = scoreAt(at, ctx).total;
+  const sea = seaAt(at, isToday);
+  const st = tideState(+at, ctx.tides);
+
+  for (const old of layer.querySelectorAll(".pin")) old.remove();
+
+  /* Marqueurs dont le centre tient dans le cadre : masqués par overflow, ceux
+     qui en sortent resteraient cliquables par-dessus le reste de la page. */
+  const visible = [];
+  SPOTS.forEach((spot, i) => {
+    const px = lonToX(spot.lon, z) - ox, py = latToY(spot.lat, z) - oy;
+    if (px < 0 || px > W || py < 0 || py > H) return;
+    visible.push({ spot, i, px, py, r: spotScore(spot, astro, sea, st) });
+  });
+
+  /* Les îles des Glénan sont distantes de quelques centaines de mètres :
+     dézoomé, leurs marqueurs se recouvrent et deviennent intouchables. On
+     regroupe ceux qui se chevauchent, le mieux noté représentant le groupe. */
+  const groups = [];
+  const taken = new Set();
+  const order = [...visible].sort((a, b) => b.r.score - a.r.score);
+  for (const a of order) {
+    if (taken.has(a.i)) continue;
+    taken.add(a.i);
+    const group = [a];
+    for (const b of order) {
+      if (taken.has(b.i)) continue;
+      if (Math.hypot(a.px - b.px, a.py - b.py) < 30) { taken.add(b.i); group.push(b); }
+    }
+    groups.push(group);
+  }
+
+  for (const group of groups) {
+    const head = group[0];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pin"
+      + (head.spot.boat ? " is-boat" : "")
+      + (group.some(g => g.i === pickedSpot) ? " is-picked" : "");
+    btn.style.left = `${head.px}px`;
+    btn.style.top = `${head.py}px`;
+    btn.style.background = ratingColor(head.r.score);
+    btn.textContent = head.r.score;
+
+    if (group.length > 1) {
+      const tag = document.createElement("span");
+      tag.className = "pin-count";
+      tag.textContent = group.length;
+      btn.appendChild(tag);
+      btn.setAttribute("aria-label",
+        `${group.length} postes, le mieux placé ${head.spot.n} à ${head.r.score} sur 100. Agrandir.`);
+      btn.addEventListener("click", ev => {
+        ev.stopPropagation();
+        mapView = {
+          lat: group.reduce((s, g) => s + g.spot.lat, 0) / group.length,
+          lon: group.reduce((s, g) => s + g.spot.lon, 0) / group.length,
+          z: Math.min(15, z + 2),
+        };
+        drawMap();
+      });
+    } else {
+      btn.setAttribute("aria-label", `${head.spot.n} — ${head.r.score} sur 100`);
+      btn.addEventListener("click", ev => { ev.stopPropagation(); pickedSpot = head.i; render(); });
+    }
+    layer.appendChild(btn);
+  }
+}
+
+function renderSpotDetail() {
+  const host = el("spot-detail");
+  if (pickedSpot === null) {
+    const s = summaryFor(dayAt(picked));
+    const isToday = picked === 0;
+    const at = scrubT || (isToday ? new Date() : s.peakAt);
+    const astro = scoreAt(at, s.ctx).total;
+    const sea = seaAt(at, isToday);
+    const st = tideState(+at, s.ctx.tides);
+    const best = SPOTS
+      .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st) }))
+      .sort((a, b) => b.r.score - a.r.score)[0];
+    host.innerHTML = `<div class="spot-card">
+      <div class="spot-card-head">
+        <span class="spot-card-name">${best.sp.n}</span>
+        <span class="spot-card-score" style="color:${ratingColor(best.r.score)}">${best.r.score}</span>
+      </div>
+      <p class="note" style="margin-top:.3rem">Le mieux placé à cette heure. Touchez un marqueur pour comparer.</p>
+    </div>`;
+    return;
+  }
+
+  const spot = SPOTS[pickedSpot];
+  const s = summaryFor(dayAt(picked));
+  const isToday = picked === 0;
+  const at = scrubT || (isToday ? new Date() : s.peakAt);
+  const astro = scoreAt(at, s.ctx).total;
+  const sea = seaAt(at, isToday);
+  const st = tideState(+at, s.ctx.tides);
+  const r = spotScore(spot, astro, sea, st);
+
+  const TIDE_LABEL = { basse: "à basse mer", haute: "à pleine mer", flot: "au flot",
+                       jusant: "au jusant", toute: "à toute marée" };
+  const tags = [
+    `<span class="spot-tag">${spot.boat ? "bateau" : "du bord"}</span>`,
+    `<span class="spot-tag">${TIDE_LABEL[spot.tide]}</span>`,
+    `<span class="spot-tag">ouvert au ${compassName(spot.facing).toLowerCase()}</span>`,
+  ];
+  if (spot.warn) tags.push(`<span class="spot-tag is-warn">réglementé</span>`);
+
+  let why;
+  if (!r.fish) {
+    why = "État de la mer inconnu à cette date : seule l'activité et la marée sont prises en compte.";
+  } else {
+    const exposed = r.local.onshore > 0.5;
+    why = `${exposed ? "Exposé" : "Sous le vent"} par ${Math.round(sea.wind)} km/h ${windFrom(sea.dir)} : `
+        + `${fr(r.local.wave)} m de mer sur le poste contre ${fr(sea.wave)} m au large. `
+        + `Marée ${st.rising ? "montante" : "descendante"}, ${Math.round(st.level * 100)} % du marnage.`;
+    if (r.crossing) why += " Le poste serait abrité, mais c'est la traversée qui limite la note.";
+    if (r.unsafe)   why += " Sortie déconseillée dans ces conditions.";
+  }
+
+  host.innerHTML = `<div class="spot-card">
+    <div class="spot-card-head">
+      <span class="spot-card-name">${spot.n}</span>
+      <span class="spot-card-score" style="color:${ratingColor(r.score)}">${r.score}</span>
+    </div>
+    <div class="spot-tags">${tags.join("")}</div>
+    <p class="note" style="margin:0 0 .35rem">${spot.d}</p>
+    <p class="note" style="margin:0 0 .35rem"><strong>${spot.sp}</strong></p>
+    <p class="note" style="margin:0">${why}</p>
+    ${spot.warn ? `<p class="note" style="margin:.45rem 0 0;color:var(--amber)">${spot.warn}</p>` : ""}
+  </div>`;
+}
+
+function bindMap() {
+  const frame = el("map-frame");
+  const clampView = () => {
+    mapView.z = Math.max(10, Math.min(15, mapView.z));
+    mapView.lat = Math.max(MAP_BOUNDS.s, Math.min(MAP_BOUNDS.n, mapView.lat));
+    mapView.lon = Math.max(MAP_BOUNDS.w, Math.min(MAP_BOUNDS.e, mapView.lon));
+  };
+
+  const pts = new Map();
+  let last = null, pinchBase = 0;
+
+  frame.addEventListener("pointerdown", ev => {
+    /* Sans cela la capture du pointeur par le cadre détournerait le relâché
+       et le marqueur ne recevrait jamais son clic. */
+    if (ev.target.closest(".pin")) return;
+    pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    frame.setPointerCapture(ev.pointerId);
+    if (pts.size === 1) { last = { x: ev.clientX, y: ev.clientY }; frame.classList.add("is-dragging"); }
+    if (pts.size === 2) pinchBase = pinchDist();
+  });
+
+  const pinchDist = () => {
+    const [a, b] = [...pts.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  frame.addEventListener("pointermove", ev => {
+    if (!pts.has(ev.pointerId)) return;
+    pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+    if (pts.size === 2 && pinchBase > 0) {
+      const d = pinchDist(), ratio = d / pinchBase;
+      if (ratio > 1.6)      { mapView.z++; pinchBase = d; clampView(); drawMap(); }
+      else if (ratio < 0.62) { mapView.z--; pinchBase = d; clampView(); drawMap(); }
+      return;
+    }
+    if (pts.size !== 1 || !last) return;
+
+    const dx = ev.clientX - last.x, dy = ev.clientY - last.y;
+    last = { x: ev.clientX, y: ev.clientY };
+    const z = mapView.z;
+    mapView.lon = xToLon(lonToX(mapView.lon, z) - dx, z);
+    mapView.lat = yToLat(latToY(mapView.lat, z) - dy, z);
+    clampView();
+    drawMap();
+  });
+
+  const release = ev => {
+    pts.delete(ev.pointerId);
+    if (pts.size === 0) { last = null; frame.classList.remove("is-dragging"); }
+    if (pts.size < 2) pinchBase = 0;
+  };
+  frame.addEventListener("pointerup", release);
+  frame.addEventListener("pointercancel", release);
+
+  el("map-in").addEventListener("click",  () => { mapView.z++; clampView(); drawMap(); });
+  el("map-out").addEventListener("click", () => { mapView.z--; clampView(); drawMap(); });
+  el("map-fit").addEventListener("click", () => { mapView = { ...MAP_FIT }; pickedSpot = null; render(); });
 }
 
 /* ═══ Rendu ════════════════════════════════════════════════════════════ */
@@ -1094,7 +1626,7 @@ function renderStrip() {
       `<span class="day-col"><span class="day-bar" style="height:${barHeight(s.peak)}%;background:${ratingColor(s.peak)}"></span></span>` +
       `<span class="day-score">${s.peak}</span>` +
       `<span class="day-today">${sameDay(s.date, today) ? "auj." : ""}</span>`;
-    b.addEventListener("click", () => { picked = i; drawProgress = 0; animate(); render(); });
+    b.addEventListener("click", () => { picked = i; scrubT = null; drawProgress = 0; animate(); render(); });
     host.appendChild(b);
   }
 }
@@ -1197,19 +1729,6 @@ function renderSpecies(coef, month) {
   }).join("");
 }
 
-const SPOTS = [
-  ["Cap Coz", "Flèche sableuse, courant de jusant sur la pointe. Bar au lancer à l'aube."],
-  ["Beg-Meil", "Roches et herbiers. Accessible à pied, bon aux coefficients moyens."],
-  ["Pointe de Mousterlin", "Estran rocheux étendu. Pêche à pied à basse mer de vive-eau."],
-  ["Baie de La Forêt", "Fonds sablo-vaseux abrités. Dorade royale en été."],
-  ["Archipel des Glénan", "Saint-Nicolas, Penfret, Drénec. Bateau requis. Le plus grand herbier de Bretagne."],
-  ["Les Moutons", "Îlot isolé, tombants profonds. Lieu jaune et congre."],
-];
-
-function renderSpots() {
-  el("spots").innerHTML = SPOTS.map(([n, d]) =>
-    `<div><div style="font-size:.87rem">${n}</div><div class="note">${d}</div></div>`).join("");
-}
 
 function render() {
   const now = new Date();
@@ -1218,25 +1737,36 @@ function render() {
   const s = summaryFor(dayAt(picked));
   const ctx = s.ctx;
   const isToday = picked === 0;
-  const at = isToday ? now : s.peakAt;
+  const at = scrubT || (isToday ? now : s.peakAt);
   const sc = scoreAt(at, ctx);
-  const astro = isToday ? sc.total : s.peak;
+  const astro = sc.total;
 
   const sea = seaAt(at, isToday);
   const fish = fishability(sea);
   const shown = fish ? Math.round(astro * fish.factor) : astro;
 
   /* verdict */
-  el("verdict-when").textContent = isToday
-    ? "Maintenant"
-    : `${s.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} ${MONTH[s.date.getMonth()]} — au pic`;
+  const dayLabel = `${s.date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} ${MONTH[s.date.getMonth()]}`;
+  el("verdict-when").textContent = scrubT
+    ? `${isToday ? "Aujourd'hui" : cap(dayLabel)} à ${hm(scrubT)}`
+    : isToday ? "Maintenant" : `${cap(dayLabel)} — au pic`;
+  el("scrub-reset").hidden = !scrubT;
+  el("scrub-reset").textContent = isToday ? "Revenir à maintenant" : "Revenir au pic";
   el("score").textContent = shown;
   el("score").style.color = fish && fish.unsafe ? "var(--coral)" : ratingColor(shown);
   el("verdict-h").textContent = fish && fish.unsafe ? "Restez à terre" : rating(shown);
 
   const openWindow = ctx.windows.find(w => at >= w.start && at <= w.end);
   let note;
-  if (fish && fish.unsafe) {
+  if (scrubT) {
+    const flow = tidalFlow(+at, ctx.tides);
+    const moving = flow > 0.75 ? "courant fort" : flow > 0.4 ? "courant moyen" : "proche de l'étale";
+    note = openWindow
+      ? `Créneau ${openWindow.type === "major" ? "majeur" : "mineur"} — ${openWindow.cause.toLowerCase()}, ${moving}.`
+      : `Hors créneau solunaire, ${moving}.`;
+    if (fish && fish.unsafe) note = `Mer impraticable à cette heure. ` + note;
+    else if (fish && fish.factor < 0.85) note += ` ${cap(fish.limiter)} retient la note à ${shown}.`;
+  } else if (fish && fish.unsafe) {
     note = `Mer trop formée : ${Math.round(sea.wind)} km/h de vent et ${fr(sea.wave)} m de houle. `
          + `L'activité serait pourtant de ${astro} sur 100.`;
   } else if (isToday) {
@@ -1312,6 +1842,12 @@ function render() {
   }
 
   renderSpecies(ctx.coef, s.date.getMonth() + 1);
+  drawMap();
+  renderSpotDetail();
+  el("map-note").textContent =
+    "Positions approximatives de lieux réels, pas des points de pêche relevés. La chasse "
+    + "sous-marine est interdite sur la majeure partie de l'archipel (arrêté 192/97). "
+    + "Vérifiez les arrêtés en vigueur auprès de la préfecture maritime avant de sortir.";
   renderStrip();
 }
 
@@ -1386,7 +1922,8 @@ function bindControls() {
 }
 
 /* ═══ Démarrage ════════════════════════════════════════════════════════ */
-renderSpots();
+bindScrub();
+bindMap();
 bindControls();
 el("colophon-tz").textContent =
   `Heures affichées dans le fuseau de votre appareil (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`;
