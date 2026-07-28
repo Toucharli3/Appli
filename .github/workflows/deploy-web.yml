@@ -5,6 +5,7 @@ on:
     branches: [claude/fishing-point-app-clone-io5qc3]
     paths:
       - 'FishingCoef/web/glenan.html'
+      - 'FishingCoef/web/icon-*.png'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
@@ -28,6 +29,21 @@ jobs:
       - name: Assembler le site
         run: |
           mkdir -p site
+          cp FishingCoef/web/icon-*.png site/
+          cat > site/manifest.webmanifest <<'JSON'
+          {
+            "name": "Coef de pêche — Fouesnant · Les Glénan",
+            "short_name": "Coef pêche",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#0A1C27",
+            "theme_color": "#0A1C27",
+            "icons": [
+              { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+              { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+            ]
+          }
+          JSON
           {
             printf '%s\n' '<!doctype html>'
             printf '%s\n' '<html lang="fr">'
@@ -38,7 +54,10 @@ jobs:
             printf '%s\n' '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
             printf '%s\n' '<meta name="apple-mobile-web-app-title" content="Coef pêche">'
             printf '%s\n' '<meta name="theme-color" content="#0A1C27">'
-            printf '%s\n' '<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎣</text></svg>">'
+            printf '%s\n' '<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">'
+            printf '%s\n' '<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">'
+            printf '%s\n' '<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">'
+            printf '%s\n' '<link rel="manifest" href="manifest.webmanifest">'
             printf '%s\n' '</head>'
             printf '%s\n' '<body>'
             cat FishingCoef/web/glenan.html
