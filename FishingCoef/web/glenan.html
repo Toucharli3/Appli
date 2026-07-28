@@ -88,6 +88,10 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
   font-size: .68rem; color: var(--ink-dim); text-transform: uppercase;
   letter-spacing: .13em; margin-top: .1rem;
 }
+.masthead-now {
+  font-family: var(--f-data); font-size: .68rem; letter-spacing: .04em;
+  color: var(--ink-dim); margin-top: .1rem;
+}
 .masthead-clock {
   font-family: var(--f-data); font-size: 1.15rem; font-variant-numeric: tabular-nums;
   color: var(--accent); letter-spacing: -.02em;
@@ -326,6 +330,9 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 :root[data-theme="dark"] #map-layer img {
   filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75);
 }
+/* La surcouche marine porte déjà ses propres couleurs : on ne l'inverse pas,
+   sinon les sondes deviennent illisibles. */
+#map-layer img.seamark { filter: none !important; }
 @media (prefers-color-scheme: dark) {
   html:not([data-theme="light"]) #map-layer img {
     filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75);
@@ -339,6 +346,9 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 4px rgba(0,0,0,.5);
 }
+/* La pastille reste petite pour ne pas masquer la carte, mais sa zone
+   sensible atteint 44 px : on la touche avec les doigts mouillés. */
+.pin::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; }
 .pin.is-boat { border-style: dashed; }
 .pin.is-picked { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 5; }
 .pin-count {
@@ -400,7 +410,10 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <h1 class="masthead-place">Fouesnant · Les Glénan</h1>
       <div class="masthead-sub">Finistère sud — 47,89° N 4,01° O</div>
     </div>
-    <div class="masthead-clock num" id="clock">—</div>
+    <div style="text-align:right">
+      <div class="masthead-clock num" id="clock">—</div>
+      <div class="masthead-now num" id="masthead-score"></div>
+    </div>
   </header>
 
   <main class="stack">
@@ -457,6 +470,8 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
           <button type="button" class="map-btn" id="map-in"  aria-label="Zoomer">+</button>
           <button type="button" class="map-btn" id="map-out" aria-label="Dézoomer">−</button>
           <button type="button" class="map-btn" id="map-fit" aria-label="Vue d'ensemble">⤢</button>
+          <button type="button" class="map-btn" id="map-sea" aria-label="Carte marine"
+                  aria-pressed="false" title="Sondes et balises">⚓</button>
         </div>
         <div class="map-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
       </div>
@@ -1039,14 +1054,23 @@ function directionFactor(dir) {
 /* Houle courte = clapot désordonné ; houle longue = mer formée mais lisible. */
 const periodFactor = T => T < 6 ? 0.94 : T < 8 ? 0.98 : 1;
 
-const UNSAFE_WIND = 50, UNSAFE_WAVE = 2.5;
+const UNSAFE_WIND = 50, UNSAFE_WAVE = 2.5, UNSAFE_GUST = 65;
 
 function fishability(sea) {
   if (!sea) return null;
   const w = windFactor(sea.wind), h = waveFactor(sea.wave);
   const d = directionFactor(sea.dir), p = periodFactor(sea.period);
-  const factor = Math.max(0.05, Math.min(1, w * h * d * p));
-  const unsafe = sea.wind >= UNSAFE_WIND || sea.wave >= UNSAFE_WAVE;
+
+  /* Ce sont les rafales qui décident d'une sortie, pas le vent moyen :
+     25 km/h établi avec des pointes à 55 n'est pas la même mer. Un écart
+     important entre les deux annonce un temps à grains, pénalisé à part. */
+  const gust = typeof sea.gust === "number" ? sea.gust : null;
+  const squall = gust && sea.wind > 5 && gust / sea.wind > 1.6 ? 0.9 : 1;
+
+  const factor = Math.max(0.05, Math.min(1, w * h * d * p * squall));
+  const unsafe = sea.wind >= UNSAFE_WIND
+    || sea.wave >= UNSAFE_WAVE
+    || (gust !== null && gust >= UNSAFE_GUST);
   const limiter = w <= h ? "le vent" : "la houle";
   let state;
   if (unsafe)          state = "Impraticable";
@@ -1055,7 +1079,7 @@ function fishability(sea) {
   else if (factor >= 0.60) state = "Praticable";
   else if (factor >= 0.35) state = "Difficile";
   else                     state = "Très difficile";
-  return { factor, unsafe, limiter, state, w, h };
+  return { factor, unsafe, limiter, state, w, h, gust, squall };
 }
 
 const COMPASS = ["Nord","Nord-Est","Est","Sud-Est","Sud","Sud-Ouest","Ouest","Nord-Ouest"];
@@ -1173,9 +1197,51 @@ function extremaFrom(times, levels) {
 /** Tente la prévision automatique. Toute réponse de forme inattendue ou de
  *  valeurs invraisemblables est rejetée : mieux vaut la saisie manuelle
  *  qu'un chiffre faux affiché avec aplomb. */
+/*
+ * Cache de la prévision. On pêche à dix milles au large, là où le réseau
+ * disparaît : sans cela la page perdrait vent, houle et vraies étales au
+ * moment précis où elle sert. On charge le port le matin, on garde en poche.
+ */
+const FC_STORE = "glenan.forecast.v1";
+const FC_MAX_AGE = 48 * 3600000;   // au-delà, la prévision ne vaut plus rien
+let forecastAt = null;
+
+function saveForecast(map) {
+  try {
+    localStorage.setItem(FC_STORE, JSON.stringify({
+      at: Date.now(),
+      rows: [...map.entries()],
+      tide: liveTide ? liveTide.map(e => ({ type: e.type, t: +e.time, h: e.h })) : null,
+    }));
+  } catch { /* quota atteint ou stockage refusé : on s'en passe */ }
+}
+
+function readForecast() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FC_STORE) || "null");
+    if (!raw || typeof raw.at !== "number" || !Array.isArray(raw.rows)) return null;
+    if (Date.now() - raw.at > FC_MAX_AGE) return null;
+    const map = new Map(raw.rows);
+    if (map.size === 0) return null;
+    const tide = Array.isArray(raw.tide)
+      ? raw.tide.map(e => ({ type: e.type, time: new Date(e.t), h: e.h }))
+      : null;
+    return { map, tide, at: raw.at };
+  } catch { return null; }
+}
+
+/** Âge de la prévision affichée, en clair. */
+function forecastAge() {
+  if (!forecastAt) return null;
+  const min = Math.round((Date.now() - forecastAt) / 60000);
+  if (min < 45) return "à l'instant";
+  const h = Math.round(min / 60);
+  return h < 24 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} j`;
+}
+
 async function loadForecast() {
   const air = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}`
-    + `&hourly=wind_speed_10m,wind_direction_10m,pressure_msl&wind_speed_unit=kmh`
+    + `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl&wind_speed_unit=kmh`
     + `&timezone=Europe%2FParis&forecast_days=14`;
   const sea = `https://marine-api.open-meteo.com/v1/marine?latitude=${SEA_LAT}&longitude=${SEA_LNG}`
     + `&hourly=wave_height,wave_period,sea_level_height_msl,sea_surface_temperature`
@@ -1187,11 +1253,16 @@ async function loadForecast() {
   if (t.length === 0 || t.length !== ws.length || t.length !== wd.length) throw new Error("longueurs incohérentes");
   if (!ws.every(v => plausible(v, 0, 250)) || !wd.every(v => plausible(v, 0, 360))) throw new Error("valeurs hors plage");
 
-  /* La pression n'est pas indispensable : si elle manque, on continue sans. */
+  /* La pression et les rafales ne sont pas indispensables : sans elles on
+     continue, en perdant seulement leur apport. */
   const pr = Array.isArray(a.hourly.pressure_msl)
     && a.hourly.pressure_msl.length === t.length
     && a.hourly.pressure_msl.every(v => plausible(v, 850, 1100))
       ? a.hourly.pressure_msl : null;
+  const gu = Array.isArray(a.hourly.wind_gusts_10m)
+    && a.hourly.wind_gusts_10m.length === t.length
+    && a.hourly.wind_gusts_10m.every(v => plausible(v, 0, 300))
+      ? a.hourly.wind_gusts_10m : null;
 
   let wh = null, wp = null, sst = null;
   try {
@@ -1222,6 +1293,7 @@ async function loadForecast() {
       period: wp && wp[i] !== null ? wp[i] : 8,
       estimatedWave: !wh,
       press: pr ? pr[i] : null,
+      gust:  gu && gu[i] !== null ? gu[i] : null,
       temp:  sst && sst[i] !== null ? sst[i] : null,
     });
   }
@@ -1747,6 +1819,7 @@ const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.20, e: -3.68 };
 let mapView = { ...MAP_FIT };
 let pickedSpot = null;
 let showAllSpots = false;
+let seaChart = false;   // surcouche sondes et balises
 
 function drawMap() {
   const frame = el("map-frame"), layer = el("map-layer");
@@ -1780,6 +1853,25 @@ function drawMap() {
       }
       img.style.left = `${tx * TILE - ox}px`;
       img.style.top  = `${ty * TILE - oy}px`;
+
+      /* Surcouche marine : sondes, balises et dangers, en transparence
+         par-dessus le fond routier. Si elle ne charge pas, la carte reste. */
+      if (seaChart) {
+        const sk = "s" + k;
+        seen.add(sk);
+        let ov = existing.get(sk);
+        if (!ov) {
+          ov = new Image();
+          ov.dataset.k = sk;
+          ov.className = "seamark";
+          ov.loading = "lazy";
+          ov.alt = "";
+          ov.src = `https://tiles.openseamap.org/seamark/${z}/${wx}/${ty}.png`;
+          frag.appendChild(ov);
+        }
+        ov.style.left = `${tx * TILE - ox}px`;
+        ov.style.top  = `${ty * TILE - oy}px`;
+      }
     }
   }
   for (const [k, img] of existing) if (!seen.has(k)) img.remove();
@@ -2057,9 +2149,10 @@ function bindMap() {
   let last = null, pinchBase = 0;
 
   frame.addEventListener("pointerdown", ev => {
-    /* Sans cela la capture du pointeur par le cadre détournerait le relâché
-       et le marqueur ne recevrait jamais son clic. */
-    if (ev.target.closest(".pin")) return;
+    /* Sans cela la capture du pointeur par le cadre détournerait le relâché,
+       et ni les marqueurs ni les boutons d'outils ne recevraient leur clic.
+       Un glissement ne démarre jamais depuis une commande, de toute façon. */
+    if (ev.target.closest(".pin, .map-btn")) return;
     pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     frame.setPointerCapture(ev.pointerId);
     if (pts.size === 1) { last = { x: ev.clientX, y: ev.clientY }; frame.classList.add("is-dragging"); }
@@ -2133,6 +2226,15 @@ function bindMap() {
     render();
   });
 
+  el("map-sea").addEventListener("click", () => {
+    seaChart = !seaChart;
+    el("map-sea").setAttribute("aria-pressed", String(seaChart));
+    el("map-sea").style.color = seaChart ? "var(--accent)" : "";
+    /* Les tuiles de la surcouche doivent disparaître quand on la coupe. */
+    if (!seaChart) for (const im of el("map-layer").querySelectorAll("img.seamark")) im.remove();
+    drawMap();
+  });
+
   el("map-all").addEventListener("click", () => {
     showAllSpots = !showAllSpots;
     el("map-all").textContent = showAllSpots ? "Ne garder que les bons postes" : "Voir tous les postes";
@@ -2198,7 +2300,9 @@ function renderSea(fish, sea, isToday, trend, temp) {
   /* Température de l'eau et tendance barométrique : affichées seulement
      lorsqu'une prévision les fournit. */
   const extra = [];
-  if (temp !== null && temp !== undefined) extra.push(`Eau à ${fr(temp)} °C`);
+  if (fish && fish.gust !== null && fish.gust !== undefined)
+    extra.push(`Rafales à ${Math.round(fish.gust)} km/h`);
+  if (temp !== null && temp !== undefined) extra.push(`eau à ${fr(temp)} °C`);
   const pl = pressureLabel(trend);
   if (pl) {
     const sign = trend > 0 ? "+" : "";
@@ -2209,8 +2313,11 @@ function renderSea(fish, sea, isToday, trend, temp) {
 
   const hasLive = !!liveSea;
   const src = el("sea-src");
-  src.textContent = overrideSea ? "valeurs forcées" : hasLive ? "prévision automatique" : "saisie manuelle";
-  src.classList.toggle("is-live", hasLive && !overrideSea);
+  const stale = hasLive && forecastAt && Date.now() - forecastAt > 6 * 3600000;
+  src.textContent = overrideSea ? "valeurs forcées"
+    : hasLive ? (stale ? `prévision ${forecastAge()}` : "prévision automatique")
+    : "saisie manuelle";
+  src.classList.toggle("is-live", hasLive && !overrideSea && !stale);
 
   el("sea-controls").hidden = hasLive && !overrideSea;
   const toggle = el("sea-toggle");
@@ -2240,10 +2347,11 @@ function renderSea(fish, sea, isToday, trend, temp) {
        se justifie pas.</div>`
     : "";
 
+  const age = forecastAge();
   el("sea-help").textContent = overrideSea
     ? "Vos valeurs remplacent la prévision pour aujourd'hui. Les jours suivants restent sur Open-Meteo."
     : hasLive
-      ? "Prévision Open-Meteo pour Fouesnant et le large des Glénan, actualisée à l'ouverture."
+      ? `Prévision Open-Meteo relevée ${age || "à l'ouverture"}, conservée sur l'appareil pour le large.`
       : (isToday
           ? "Relevez le vent et la houle sur votre application marine habituelle, puis reportez-les ici. Vos valeurs sont conservées sur cet appareil."
           : "Ces réglages ne s'appliquent qu'à aujourd'hui.");
@@ -2303,6 +2411,10 @@ function render() {
   el("verdict-when").textContent = scrubT
     ? `${isToday ? "Aujourd'hui" : cap(dayLabel)} à ${hm(scrubT)}`
     : isToday ? "Maintenant" : `${cap(dayLabel)} — au pic`;
+  /* La note reste sous les yeux pendant qu'on fait défiler la page. */
+  el("masthead-score").textContent = `${shown} · ${rating(shown)}`;
+  el("masthead-score").style.color = ratingColor(shown);
+
   el("scrub-reset").hidden = !scrubT;
   el("scrub-reset").textContent = isToday ? "Revenir à maintenant" : "Revenir au pic";
   el("score").textContent = shown;
@@ -2506,18 +2618,32 @@ animate();
 
 setInterval(() => { if (picked === 0) render(); }, 60000);
 
-/* La prévision n'aboutit que si l'hôte autorise l'appel réseau ; sinon la
-   saisie manuelle reste en place sans que rien ne casse. */
+/* On repart d'abord de la dernière prévision gardée : au large, sans réseau,
+   c'est elle qui fait tourner la page. Le rafraîchissement vient ensuite. */
+const cachedFc = readForecast();
+if (cachedFc) {
+  liveSea = cachedFc.map;
+  if (cachedFc.tide) liveTide = cachedFc.tide;
+  forecastAt = cachedFc.at;
+  cache.clear();
+  planCache = null;
+  render();
+}
+
+/* Le rafraîchissement échoue sans réseau ou si l'hôte l'interdit ; on garde
+   alors ce qu'on avait, sans rien casser. */
 loadForecast()
   .then(map => {
     liveSea = map;
+    forecastAt = Date.now();
+    saveForecast(map);
     /* Les contextes déjà calculés portent les étales estimées : on les jette
        pour qu'ils soient reconstruits sur le niveau prévu. */
     cache.clear();
     planCache = null;
     render();
   })
-  .catch(() => { /* silencieux : la saisie manuelle est déjà affichée */ });
+  .catch(() => { /* silencieux : prévision gardée ou saisie manuelle en place */ });
 
 let rt;
 window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 150); });
