@@ -1875,8 +1875,10 @@ const yToLat = (y, z) => {
 };
 
 const MAP_FIT = { lat: 47.8015, lon: -3.955, z: 11 };
-/* De l'embouchure de l'Odet à l'Aven, et jusqu'au sud de l'archipel. */
-const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.20, e: -3.68 };
+/* De l'embouchure de l'Odet à l'Aven, et jusqu'au sud de l'archipel. Cale
+   exactement la zone interrogée pour le relief du fond, sans quoi les épaves
+   les plus au large resteraient hors d'atteinte. */
+const MAP_BOUNDS = { n: 47.95, s: 47.62, w: -4.25, e: -3.65 };
 let mapView = { ...MAP_FIT };
 let pickedSpot = null;
 let showAllSpots = false;
@@ -2157,13 +2159,23 @@ function renderExplore() {
    * un objet nommé mieux qu'un anonyme, et le fond compte pour le lieu.
    */
   const INTEREST = { wreck: 0, obstruction: 1, shoal: 2, reef: 3, rock: 4 };
-  const ranked = seabed
+  const sorted = seabed
     .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
     .sort((a, b) =>
       (INTEREST[a.sp.seabed] ?? 9) - (INTEREST[b.sp.seabed] ?? 9)
       || (a.sp.n.includes("sans nom") ? 1 : 0) - (b.sp.n.includes("sans nom") ? 1 : 0)
-      || b.sp.depth - a.sp.depth)
-    .slice(0, 6);
+      || b.sp.depth - a.sp.depth);
+
+  /* Le secteur compte des dizaines d'épaves : sans plafond par type, elles
+     rempliraient la liste et masqueraient les hauts-fonds et les roches. */
+  const perKind = {};
+  const ranked = [];
+  for (const e of sorted) {
+    const k = e.sp.seabed;
+    perKind[k] = (perKind[k] || 0) + 1;
+    if (perKind[k] <= 3) ranked.push(e);
+    if (ranked.length === 6) break;
+  }
 
   el("explore-rank").innerHTML = ranked.map(({ sp, i, r }) => {
     const meta = SEABED_KIND[sp.seabed];
