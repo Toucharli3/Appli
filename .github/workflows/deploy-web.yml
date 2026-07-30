@@ -26,9 +26,40 @@ jobs:
 
       # La page est autonome : aucune dépendance, aucune étape de compilation.
       # On l'assemble simplement dans le squelette HTML attendu par un navigateur.
+      # OpenStreetMap porte les objets des cartes marines saisis par les
+      # contributeurs d'OpenSeaMap. C'est le seul jeu libre et interrogeable
+      # qui dise ce qu'il y a au fond du secteur. Le relevé se fait ici parce
+      # que le runner a un accès réseau, et son échec ne doit pas casser le
+      # déploiement : la page fonctionne sans.
+      - name: Relever le relief du fond
+        continue-on-error: true
+        run: |
+          BBOX="47.62,-4.25,47.95,-3.65"
+          TYPES="^(wreck|obstruction|shoal|reef|rock)$"
+          read -r -d '' Q <<EOF || true
+          [out:json][timeout:120];
+          (
+            node["seamark:type"~"$TYPES"]($BBOX);
+            way["seamark:type"~"$TYPES"]($BBOX);
+            node["historic"="wreck"]($BBOX);
+            way["historic"="wreck"]($BBOX);
+            node["natural"~"^(reef|shoal|bank)$"]($BBOX);
+            way["natural"~"^(reef|shoal|bank)$"]($BBOX);
+          );
+          out center tags;
+          EOF
+          curl -sS --max-time 180 --retry 2 --retry-delay 10 \
+            -H 'User-Agent: coef-peche-glenan (deploiement GitHub Pages)' \
+            --data-urlencode "data=$Q" \
+            https://overpass-api.de/api/interpreter -o overpass.json || echo '{}' > overpass.json
+          echo "réponse Overpass : $(wc -c < overpass.json) octets"
+          python3 FishingCoef/tools/seabed.py < overpass.json > seabed.js
+          head -c 300 seabed.js; echo
+
       - name: Assembler le site
         run: |
           mkdir -p site
+          [ -s seabed.js ] || echo 'window.__SEABED__ = [];' > seabed.js
           cp FishingCoef/web/icon-*.png site/
           cat > site/manifest.webmanifest <<'JSON'
           {
@@ -60,6 +91,9 @@ jobs:
             printf '%s\n' '<link rel="manifest" href="manifest.webmanifest">'
             printf '%s\n' '</head>'
             printf '%s\n' '<body>'
+            printf '%s\n' '<script>'
+            cat seabed.js
+            printf '%s\n' '</script>'
             cat FishingCoef/web/glenan.html
             printf '%s\n' '</body>'
             printf '%s\n' '</html>'

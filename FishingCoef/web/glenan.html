@@ -351,6 +351,17 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .pin::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; }
 .pin.is-boat { border-style: dashed; }
 .pin.is-picked { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 5; }
+/* Losange, pour ne jamais confondre un repere theorique avec un poste
+   eprouve. */
+.pin-sb {
+  position: absolute; transform: translate(-50%, -50%) rotate(45deg);
+  width: 15px; height: 15px; padding: 0; cursor: pointer;
+  border: 1.5px solid var(--ground); border-radius: 3px;
+  background: var(--ink-dim); box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.pin-sb::before { content: ""; position: absolute; inset: -14px; }
+.pin-sb.is-wreck { background: var(--amber); }
+.pin-sb.is-picked { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 6; }
 .pin-count {
   position: absolute; top: -5px; right: -7px;
   background: var(--ink); color: var(--ground);
@@ -472,6 +483,8 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
           <button type="button" class="map-btn" id="map-fit" aria-label="Vue d'ensemble">⤢</button>
           <button type="button" class="map-btn" id="map-sea" aria-label="Carte marine"
                   aria-pressed="false" title="Sondes et balises">⚓</button>
+          <button type="button" class="map-btn" id="map-sb" aria-label="Relief du fond"
+                  aria-pressed="false" title="Épaves, roches, hauts-fonds">◆</button>
         </div>
         <div class="map-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>
       </div>
@@ -550,6 +563,15 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <div>
         <h3 class="eyebrow" style="margin-bottom:.4rem">Les mieux placés à cette heure</h3>
         <div id="spot-rank"></div>
+      </div>
+
+      <div id="explore-wrap" hidden>
+        <h3 class="eyebrow" style="margin-bottom:.25rem">À explorer</h3>
+        <p class="note" style="margin:0 0 .4rem">
+          Épaves, roches isolées et hauts-fonds relevés sur la carte marine, par ordre
+          d'intérêt. Jamais éprouvés : à sonder avant d'y croire.
+        </p>
+        <div id="explore-rank"></div>
       </div>
 
       <p class="note" id="map-note"></p>
@@ -1640,6 +1662,45 @@ try {
 
 function allSpots() { return SPOTS.concat(mySpots); }
 
+/* ═══ Relief du fond ═══════════════════════════════════════════════════
+ * Épaves, roches isolées, hauts-fonds et récifs relevés dans OpenStreetMap
+ * au moment du déploiement. Ce ne sont pas des postes éprouvés : ce sont les
+ * accidents du fond qui retiennent le poisson, à aller vérifier soi-même.
+ */
+const SEABED_KIND = {
+  wreck:       { label: "Épave",       kind: "tombant", depth: 25, tide: "toute",  facing: 200, shelter: 0.05 },
+  obstruction: { label: "Obstruction", kind: "tombant", depth: 20, tide: "toute",  facing: 200, shelter: 0.05 },
+  shoal:       { label: "Haut-fond",   kind: "plateau", depth: 8,  tide: "flot",   facing: 200, shelter: 0.05 },
+  reef:        { label: "Récif",       kind: "plateau", depth: 6,  tide: "basse",  facing: 200, shelter: 0.10 },
+  rock:        { label: "Roche",       kind: "plateau", depth: 10, tide: "toute",  facing: 200, shelter: 0.10 },
+};
+
+/** Un objet du fond décrit comme un poste, pour passer dans le même modèle. */
+function seabedAsSpot(f, i) {
+  const meta = SEABED_KIND[f.k] || SEABED_KIND.rock;
+  const named = f.n || `${meta.label} sans nom`;
+  return {
+    n: named, lat: f.la, lon: f.lo,
+    facing: meta.facing, shelter: meta.shelter,
+    tide: meta.tide, boat: true, kind: meta.kind,
+    depth: f.d !== null && f.d !== undefined ? Math.max(2, Math.round(f.d)) : meta.depth,
+    seabed: f.k, seabedIndex: i,
+    d: `${meta.label} relevée sur la carte marine`
+       + (f.d !== null && f.d !== undefined ? `, ${fr(f.d)} m de fond` : "")
+       + ". Repère non éprouvé : à sonder avant d'y croire.",
+  };
+}
+
+let seabed = [];
+try {
+  const raw = typeof window !== "undefined" ? window.__SEABED__ : null;
+  if (Array.isArray(raw)) {
+    seabed = raw
+      .filter(f => f && typeof f.la === "number" && typeof f.lo === "number" && SEABED_KIND[f.k])
+      .map(seabedAsSpot);
+  }
+} catch { /* donnée absente : la page fonctionne sans */ }
+
 function saveMySpots() {
   try { localStorage.setItem(MINE_STORE, JSON.stringify(mySpots)); } catch { /* ignoré */ }
 }
@@ -1819,7 +1880,9 @@ const MAP_BOUNDS = { n: 47.95, s: 47.65, w: -4.20, e: -3.68 };
 let mapView = { ...MAP_FIT };
 let pickedSpot = null;
 let showAllSpots = false;
-let seaChart = false;   // surcouche sondes et balises
+let seaChart = false;      // surcouche sondes et balises
+let showSeabed = false;    // relief du fond releve sur la carte marine
+let pickedSeabed = null;
 
 function drawMap() {
   const frame = el("map-frame"), layer = el("map-layer");
@@ -1930,6 +1993,27 @@ function drawMap() {
     groups.push(group);
   }
 
+  /* Relief du fond : couche séparée, sous les postes éprouvés. */
+  for (const old of layer.querySelectorAll(".pin-sb")) old.remove();
+  if (showSeabed) {
+    seabed.forEach((sp, i) => {
+      const px = lonToX(sp.lon, z) - ox, py = latToY(sp.lat, z) - oy;
+      if (px < 0 || px > W || py < 0 || py > H) return;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pin-sb" + (sp.seabed === "wreck" ? " is-wreck" : "")
+        + (pickedSeabed === i ? " is-picked" : "");
+      btn.style.left = `${px}px`;
+      btn.style.top = `${py}px`;
+      btn.setAttribute("aria-label", `${sp.n}, repère à explorer`);
+      btn.addEventListener("click", ev => {
+        ev.stopPropagation();
+        pickedSeabed = i; pickedSpot = null; render();
+      });
+      layer.appendChild(btn);
+    });
+  }
+
   for (const group of groups) {
     const head = group[0];
     const btn = document.createElement("button");
@@ -1960,7 +2044,9 @@ function drawMap() {
       });
     } else {
       btn.setAttribute("aria-label", `${head.spot.n} — ${head.r.score} sur 100`);
-      btn.addEventListener("click", ev => { ev.stopPropagation(); pickedSpot = head.i; render(); });
+      btn.addEventListener("click", ev => {
+        ev.stopPropagation(); pickedSpot = head.i; pickedSeabed = null; render();
+      });
     }
     layer.appendChild(btn);
   }
@@ -2039,6 +2125,7 @@ function renderSpotRank() {
     btn.addEventListener("click", () => {
       const i = Number(btn.dataset.spot);
       pickedSpot = i;
+      pickedSeabed = null;
       const sp = allSpots()[i];
       mapView = { lat: sp.lat, lon: sp.lon, z: Math.max(mapView.z, 13) };
       render();
@@ -2047,7 +2134,100 @@ function renderSpotRank() {
   }
 }
 
+/** Les repères du fond, classés comme des postes mais tenus à part : ils
+ *  n'entrent ni dans le programme ni dans le classement des postes éprouvés. */
+function renderExplore() {
+  const wrap = el("explore-wrap");
+  if (!seabed.length) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+
+  const s = summaryFor(dayAt(picked));
+  const isToday = picked === 0;
+  const at = scrubT || (isToday ? new Date() : s.peakAt);
+  const astro = scoreAt(at, s.ctx).total;
+  const sea = seaAt(at, isToday);
+  const st = tideState(+at, s.ctx.tides);
+  const pf = pressureFactor(pressureTrend(at));
+
+  /*
+   * Classés par intérêt propre et non par note : leur exposition et leur
+   * marée favorable sont déduites du type d'objet, donc identiques à type
+   * égal, et un classement par note les mettrait tous au même rang en
+   * donnant l'illusion d'une comparaison. Une épave vaut mieux qu'un caillou,
+   * un objet nommé mieux qu'un anonyme, et le fond compte pour le lieu.
+   */
+  const INTEREST = { wreck: 0, obstruction: 1, shoal: 2, reef: 3, rock: 4 };
+  const ranked = seabed
+    .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
+    .sort((a, b) =>
+      (INTEREST[a.sp.seabed] ?? 9) - (INTEREST[b.sp.seabed] ?? 9)
+      || (a.sp.n.includes("sans nom") ? 1 : 0) - (b.sp.n.includes("sans nom") ? 1 : 0)
+      || b.sp.depth - a.sp.depth)
+    .slice(0, 6);
+
+  el("explore-rank").innerHTML = ranked.map(({ sp, i, r }) => {
+    const meta = SEABED_KIND[sp.seabed];
+    return `<button type="button" class="rank-row" data-sb="${i}">
+      <span class="rank-val" style="color:${ratingColor(r.score)}">${r.score}</span>
+      <span class="rank-body">
+        <span class="rank-name">${sp.n}</span>
+        <span class="rank-sub">${meta.label.toLowerCase()} · ~${sp.depth} m</span>
+      </span>
+    </button>`;
+  }).join("");
+
+  for (const btn of el("explore-rank").querySelectorAll(".rank-row")) {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.dataset.sb);
+      pickedSeabed = i; pickedSpot = null;
+      showSeabed = true;
+      el("map-sb").setAttribute("aria-pressed", "true");
+      el("map-sb").style.color = "var(--accent)";
+      mapView = { lat: seabed[i].lat, lon: seabed[i].lon, z: Math.max(mapView.z, 13) };
+      render();
+      el("map-frame").scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }
+}
+
 function renderSpotDetail() {
+  /* Un repère du fond prime sur la sélection de poste : c'est le dernier
+     objet touché. */
+  if (pickedSeabed !== null && seabed[pickedSeabed]) {
+    const sp = seabed[pickedSeabed];
+    const s = summaryFor(dayAt(picked));
+    const isToday = picked === 0;
+    const at = scrubT || (isToday ? new Date() : s.peakAt);
+    const astro = scoreAt(at, s.ctx).total;
+    const sea = seaAt(at, isToday);
+    const st = tideState(+at, s.ctx.tides);
+    const pf = pressureFactor(pressureTrend(at));
+    const r = spotScore(sp, astro, sea, st, pf);
+    const meta = SEABED_KIND[sp.seabed];
+    const temp = seaTemp(at);
+    const targets = fishFor(sp, s.date.getMonth() + 1, temp).map(f => f.n).join(", ");
+
+    el("spot-detail").innerHTML = `<div class="spot-card">
+      <div class="spot-card-head">
+        <span class="spot-card-name">${sp.n}</span>
+        <span class="spot-card-score" style="color:${ratingColor(r.score)}">${r.score}</span>
+      </div>
+      <div class="spot-tags">
+        <span class="spot-tag is-warn">à explorer</span>
+        <span class="spot-tag">${meta.label.toLowerCase()}</span>
+        <span class="spot-tag">~${sp.depth} m</span>
+        <span class="spot-tag num">${fr(sp.lat, 4)} N ${fr(Math.abs(sp.lon), 4)} O</span>
+      </div>
+      <p class="note" style="margin:0 0 .35rem">${sp.d}</p>
+      ${targets ? `<p class="note" style="margin:0 0 .35rem"><strong>${targets}</strong></p>` : ""}
+      <p class="note" style="margin:0">
+        Note calculée avec les mêmes règles que les postes éprouvés, mais son exposition et sa
+        marée favorable sont déduites du type d'objet, pas observées.
+      </p>
+    </div>`;
+    return;
+  }
+
   const host = el("spot-detail");
   if (pickedSpot === null) {
     const s = summaryFor(dayAt(picked));
@@ -2233,6 +2413,14 @@ function bindMap() {
     /* Les tuiles de la surcouche doivent disparaître quand on la coupe. */
     if (!seaChart) for (const im of el("map-layer").querySelectorAll("img.seamark")) im.remove();
     drawMap();
+  });
+
+  el("map-sb").addEventListener("click", () => {
+    showSeabed = !showSeabed;
+    el("map-sb").setAttribute("aria-pressed", String(showSeabed));
+    el("map-sb").style.color = showSeabed ? "var(--accent)" : "";
+    if (!showSeabed) pickedSeabed = null;
+    render();
   });
 
   el("map-all").addEventListener("click", () => {
@@ -2516,6 +2704,7 @@ function render() {
   drawMap();
   renderSpotDetail();
   renderSpotRank();
+  renderExplore();
   el("map-note").textContent =
     "Positions approximatives de lieux réels, pas des points de pêche relevés. La chasse "
     + "sous-marine est interdite sur la majeure partie de l'archipel (arrêté 192/97). "
