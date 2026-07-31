@@ -361,6 +361,8 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 }
 .pin-sb::before { content: ""; position: absolute; inset: -14px; }
 .pin-sb.is-wreck { background: var(--amber); }
+.pin-sb.is-bank  { background: var(--accent); }
+.pin-sb.is-sure  { border-color: var(--ink); border-width: 2px; }
 .pin-sb.is-picked { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 6; }
 .pin-count {
   position: absolute; top: -5px; right: -7px;
@@ -568,8 +570,9 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <div id="explore-wrap" hidden>
         <h3 class="eyebrow" style="margin-bottom:.25rem">À explorer</h3>
         <p class="note" style="margin:0 0 .4rem">
-          Épaves, roches isolées et hauts-fonds relevés sur la carte marine, par ordre
-          d'intérêt. Jamais éprouvés : à sonder avant d'y croire.
+          Secs détectés dans la grille des profondeurs, épaves et roches relevées sur la carte
+          marine. Ce que deux sources signalent au même endroit passe devant. Jamais éprouvés :
+          à sonder avant d'y croire.
         </p>
         <div id="explore-rank"></div>
       </div>
@@ -1691,14 +1694,70 @@ function seabedAsSpot(f, i) {
   };
 }
 
+/* Secs et tombants déduits de la grille de profondeurs EMODnet. Contrairement
+   aux objets de la carte marine, ceux-là portent une grandeur physique qui
+   les départage vraiment : le relief, c'est-à-dire de combien le fond remonte
+   au-dessus de ce qui l'entoure. */
+const BATHY_KIND = {
+  bank: { label: "Sec",     kind: "plateau", tide: "flot",  facing: 200, shelter: 0.05 },
+  drop: { label: "Tombant", kind: "tombant", tide: "toute", facing: 200, shelter: 0.05 },
+};
+
+function bathyAsSpot(f) {
+  const meta = BATHY_KIND[f.k];
+  const relief = typeof f.r === "number" ? f.r : null;
+  return {
+    n: meta.label + (relief ? ` +${Math.round(relief)} m` : ""),
+    lat: f.la, lon: f.lo,
+    facing: meta.facing, shelter: meta.shelter, tide: meta.tide,
+    boat: true, kind: meta.kind,
+    depth: Math.max(2, Math.round(f.d)),
+    seabed: f.k, relief, slope: typeof f.s === "number" ? f.s : null,
+    d: f.k === "bank"
+      ? `Remontée du fond détectée sur la grille EMODnet : ${fr(f.d)} m sur un fond`
+        + ` alentour d'environ ${fr(f.d + (relief || 0))} m.`
+      : `Rupture de pente détectée sur la grille EMODnet, ${fr(f.d)} m de fond.`,
+  };
+}
+
+const metres = (a, b) => {
+  const dy = (a.lat - b.lat) * 111320;
+  const dx = (a.lon - b.lon) * 111320 * Math.cos(a.lat * RAD);
+  return Math.hypot(dx, dy);
+};
+
 let seabed = [];
 try {
-  const raw = typeof window !== "undefined" ? window.__SEABED__ : null;
-  if (Array.isArray(raw)) {
-    seabed = raw
-      .filter(f => f && typeof f.la === "number" && typeof f.lo === "number" && SEABED_KIND[f.k])
-      .map(seabedAsSpot);
+  const osm = Array.isArray(window.__SEABED__) ? window.__SEABED__ : [];
+  const bat = Array.isArray(window.__BATHY__) ? window.__BATHY__ : [];
+
+  const fromOsm = osm
+    .filter(f => f && typeof f.la === "number" && typeof f.lo === "number" && SEABED_KIND[f.k])
+    .map(seabedAsSpot);
+  const fromBathy = bat
+    .filter(f => f && typeof f.la === "number" && typeof f.lo === "number"
+                 && typeof f.d === "number" && BATHY_KIND[f.k])
+    .map(bathyAsSpot);
+
+  /* Un relief détecté qui tombe sur un objet déjà porté par la carte marine
+     est corroboré par deux sources indépendantes : c'est le seul indice de
+     fiabilité dont on dispose sur un repère jamais pêché. */
+  const known = fromOsm.concat(SPOTS);
+  for (const b of fromBathy) {
+    const near = known.find(k => metres(b, k) < 400);
+    if (near) {
+      b.confirmedBy = near.n;
+      /* Un relief prend le nom de ce qu'il recoupe : « sec près de la Langue »
+         se retient et se retrouve, « Sec +12 m » non. */
+      b.n = `${BATHY_KIND[b.seabed].label} près de ${near.n}`;
+    }
   }
+  for (const o of fromOsm) {
+    const near = fromBathy.find(b => metres(o, b) < 400);
+    if (near) { o.confirmedBy = near.n; }
+  }
+
+  seabed = fromBathy.concat(fromOsm);
 } catch { /* donnée absente : la page fonctionne sans */ }
 
 function saveMySpots() {
@@ -2003,7 +2062,7 @@ function drawMap() {
       if (px < 0 || px > W || py < 0 || py > H) return;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "pin-sb" + (sp.seabed === "wreck" ? " is-wreck" : "")
+      btn.className = "pin-sb" + (sp.seabed === "wreck" ? " is-wreck" : "") + (sp.seabed === "bank" ? " is-bank" : "") + (sp.confirmedBy ? " is-sure" : "")
         + (pickedSeabed === i ? " is-picked" : "");
       btn.style.left = `${px}px`;
       btn.style.top = `${py}px`;
@@ -2158,11 +2217,15 @@ function renderExplore() {
    * donnant l'illusion d'une comparaison. Une épave vaut mieux qu'un caillou,
    * un objet nommé mieux qu'un anonyme, et le fond compte pour le lieu.
    */
-  const INTEREST = { wreck: 0, obstruction: 1, shoal: 2, reef: 3, rock: 4 };
+  const INTEREST = { bank: 0, wreck: 1, drop: 2, obstruction: 3, shoal: 4, reef: 5, rock: 6 };
   const sorted = seabed
     .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
     .sort((a, b) =>
-      (INTEREST[a.sp.seabed] ?? 9) - (INTEREST[b.sp.seabed] ?? 9)
+      /* Ce qui est confirme par deux sources passe devant : c'est le seul
+         gage de serieux sur un repere jamais pêche. */
+      (a.sp.confirmedBy ? 0 : 1) - (b.sp.confirmedBy ? 0 : 1)
+      || (INTEREST[a.sp.seabed] ?? 9) - (INTEREST[b.sp.seabed] ?? 9)
+      || (b.sp.relief || 0) - (a.sp.relief || 0)
       || (a.sp.n.includes("sans nom") ? 1 : 0) - (b.sp.n.includes("sans nom") ? 1 : 0)
       || b.sp.depth - a.sp.depth);
 
@@ -2178,12 +2241,15 @@ function renderExplore() {
   }
 
   el("explore-rank").innerHTML = ranked.map(({ sp, i, r }) => {
-    const meta = SEABED_KIND[sp.seabed];
+    const meta = SEABED_KIND[sp.seabed] || BATHY_KIND[sp.seabed];
+    const bits = [`${meta.label.toLowerCase()} · ~${sp.depth} m`];
+    if (sp.relief) bits.push(`remonte de ${Math.round(sp.relief)} m`);
+    if (sp.confirmedBy) bits.push("confirmé");
     return `<button type="button" class="rank-row" data-sb="${i}">
       <span class="rank-val" style="color:${ratingColor(r.score)}">${r.score}</span>
       <span class="rank-body">
         <span class="rank-name">${sp.n}</span>
-        <span class="rank-sub">${meta.label.toLowerCase()} · ~${sp.depth} m</span>
+        <span class="rank-sub">${bits.join(" · ")}</span>
       </span>
     </button>`;
   }).join("");
@@ -2215,7 +2281,7 @@ function renderSpotDetail() {
     const st = tideState(+at, s.ctx.tides);
     const pf = pressureFactor(pressureTrend(at));
     const r = spotScore(sp, astro, sea, st, pf);
-    const meta = SEABED_KIND[sp.seabed];
+    const meta = SEABED_KIND[sp.seabed] || BATHY_KIND[sp.seabed];
     const temp = seaTemp(at);
     const targets = fishFor(sp, s.date.getMonth() + 1, temp).map(f => f.n).join(", ");
 
@@ -2228,10 +2294,14 @@ function renderSpotDetail() {
         <span class="spot-tag is-warn">à explorer</span>
         <span class="spot-tag">${meta.label.toLowerCase()}</span>
         <span class="spot-tag">~${sp.depth} m</span>
+        ${sp.relief ? `<span class="spot-tag">relief +${Math.round(sp.relief)} m</span>` : ""}
+        ${sp.confirmedBy ? `<span class="spot-tag" style="color:var(--accent);border-color:var(--accent)">deux sources</span>` : ""}
         <span class="spot-tag num">${fr(sp.lat, 4)} N ${fr(Math.abs(sp.lon), 4)} O</span>
       </div>
       <p class="note" style="margin:0 0 .35rem">${sp.d}</p>
       ${targets ? `<p class="note" style="margin:0 0 .35rem"><strong>${targets}</strong></p>` : ""}
+      ${sp.confirmedBy ? `<p class="note" style="margin:0 0 .35rem;color:var(--accent)">
+        Recoupé avec « ${sp.confirmedBy} » : deux sources indépendantes signalent un relief ici.</p>` : ""}
       <p class="note" style="margin:0">
         Note calculée avec les mêmes règles que les postes éprouvés, mais son exposition et sa
         marée favorable sont déduites du type d'objet, pas observées.

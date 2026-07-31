@@ -56,10 +56,29 @@ jobs:
           python3 FishingCoef/tools/seabed.py < overpass.json > seabed.js
           head -c 300 seabed.js; echo
 
+      # Grille de profondeurs EMODnet (~115 m de maille), analysée pour en
+      # tirer les secs et les tombants. La zone déborde volontairement celle
+      # de la carte : la mesure du fond alentour a besoin de marge, sans quoi
+      # les reliefs proches du bord seraient invisibles.
+      - name: Chercher les secs et les tombants
+        continue-on-error: true
+        run: |
+          python3 -m pip install --quiet numpy rasterio
+          curl -sS --max-time 240 --retry 2 --retry-delay 10 \
+            -H 'User-Agent: coef-peche-glenan (deploiement GitHub Pages)' \
+            -o bathy.tif \
+            'https://ows.emodnet-bathymetry.eu/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=emodnet:mean&crs=EPSG:4326&bbox=-4.29,47.59,-3.61,47.98&format=image/tiff&width=653&height=374' \
+            || true
+          echo "grille reçue : $(wc -c < bathy.tif 2>/dev/null || echo 0) octets"
+          file bathy.tif || true
+          python3 FishingCoef/tools/bathy.py bathy.tif > bathy.js
+          head -c 200 bathy.js; echo
+
       - name: Assembler le site
         run: |
           mkdir -p site
           [ -s seabed.js ] || echo 'window.__SEABED__ = [];' > seabed.js
+          [ -s bathy.js ]  || echo 'window.__BATHY__ = [];'  > bathy.js
           cp FishingCoef/web/icon-*.png site/
           cat > site/manifest.webmanifest <<'JSON'
           {
@@ -93,6 +112,7 @@ jobs:
             printf '%s\n' '<body>'
             printf '%s\n' '<script>'
             cat seabed.js
+            cat bathy.js
             printf '%s\n' '</script>'
             cat FishingCoef/web/glenan.html
             printf '%s\n' '</body>'
