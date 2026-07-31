@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches: [claude/fishing-point-app-clone-io5qc3]
+    paths:
+      - 'FishingCoef/**'
+      - '.github/workflows/tests.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  outils:
+    name: Outils de relevé
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet numpy
+      - name: Détection des secs et des tombants
+        run: python3 test_bathy.py
+        working-directory: FishingCoef/tools
+      - name: Traitement de la réponse Overpass
+        run: python3 test_seabed.py
+        working-directory: FishingCoef/tools
+
+  page:
+    name: Page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Étalonnage et invariants
+        run: node FishingCoef/web/test_page.js
