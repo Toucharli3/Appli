@@ -404,6 +404,7 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .rank-body { display: flex; flex-direction: column; }
 .rank-name { font-size: .87rem; }
 .rank-sub { font-size: .68rem; color: var(--ink-faint); margin-top: .05rem; }
+.rank-why { font-size: .66rem; color: var(--accent-d); margin-top: .05rem; }
 .spot-card { background: var(--sunken); border-radius: 4px; padding: .7rem .8rem; }
 .spot-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
 .spot-card-name { font-family: var(--f-display); font-size: 1.05rem; }
@@ -1793,9 +1794,12 @@ try {
     const near = known.find(k => metres(b, k) < SAME_FEATURE_M);
     if (near) {
       b.confirmedBy = near.n;
-      /* Un relief prend le nom de ce qu'il recoupe : « sec près de la Langue »
-         se retient et se retrouve, « Sec +12 m » non. */
-      b.n = `${BATHY_KIND[b.seabed].label} près de ${near.n}`;
+      /* Un relief prend le nom de ce qu'il recoupe, mais seulement si ce nom
+         en est un : « sec près de la Langue » se retient, « sec près de Roche
+         sans nom » n'apprend rien. */
+      if (near.named !== false && !/sans nom$/.test(near.n)) {
+        b.n = `${BATHY_KIND[b.seabed].label} près de ${near.n}`;
+      }
     }
   }
   for (const o of fromOsm) {
@@ -2209,6 +2213,23 @@ function renderPlan() {
 
 /** Classement des postes à l'instant affiché, pour choisir sans chercher sur
  *  la carte. Un appui sur une ligne recentre la carte dessus. */
+/**
+ * Ce qui distingue deux postes à un instant donné. La note seule ne le montre
+ * pas : elle est le produit de l'activité, commune à tous, par le mérite
+ * propre du poste. Deux postes dont le mérite va de 0,45 à 0,90 s'affichent
+ * à un point d'écart une fois multipliés par une activité faible.
+ */
+function spotMerit(sp, r, st) {
+  const bits = [];
+  if (r.local) bits.push(r.local.onshore > 0.5 ? "exposé" : "sous le vent");
+  const tm = r.tm;
+  if (tm >= 0.95) bits.push("marée favorable");
+  else if (tm <= 0.7) bits.push("mauvaise marée");
+  if (r.crossing) bits.push("traversée limitante");
+  if (sp.depth >= 20) bits.push(`${sp.depth} m`);
+  return bits.join(" · ");
+}
+
 function renderSpotRank() {
   const s = summaryFor(dayAt(picked));
   const isToday = picked === 0;
@@ -2220,10 +2241,22 @@ function renderSpotRank() {
   const temp = seaTemp(at);
   const month = s.date.getMonth() + 1;
 
-  const ranked = allSpots()
+  const sorted = allSpots()
     .map((sp, i) => ({ sp, i, r: spotScore(sp, astro, sea, st, pf) }))
-    .sort((a, b) => b.r.score - a.r.score)
-    .slice(0, 5);
+    .sort((a, b) => b.r.score - a.r.score);
+
+  /* Les meilleurs postes se ressemblent : au large, en bateau, à toute marée.
+     Les proposer tous les cinq revient à ne proposer qu'une seule option. On
+     garde donc au plus trois postes par mode d'accès, pour qu'une solution du
+     bord figure toujours à côté d'une solution en bateau. */
+  const ranked = [];
+  let nBoat = 0, nShore = 0;
+  for (const e of sorted) {
+    if (e.sp.boat ? nBoat >= 3 : nShore >= 3) continue;
+    e.sp.boat ? nBoat++ : nShore++;
+    ranked.push(e);
+    if (ranked.length === 5) break;
+  }
 
   el("spot-rank").innerHTML = ranked.map(({ sp, i, r }) => {
     const fish = fishFor(sp, month, temp).map(f => f.n).slice(0, 2).join(", ");
@@ -2232,6 +2265,7 @@ function renderSpotRank() {
       <span class="rank-body">
         <span class="rank-name">${sp.n}</span>
         <span class="rank-sub">${sp.boat ? "bateau" : "du bord"} · ${fish || "hors saison"}</span>
+        <span class="rank-why">${spotMerit(sp, r, st)}</span>
       </span>
     </button>`;
   }).join("");
