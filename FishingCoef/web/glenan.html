@@ -1742,9 +1742,12 @@ try {
   /* Un relief détecté qui tombe sur un objet déjà porté par la carte marine
      est corroboré par deux sources indépendantes : c'est le seul indice de
      fiabilité dont on dispose sur un repère jamais pêché. */
+  /* 600 m et non 400 : un sec ou une basse s'étend sur plusieurs centaines de
+     mètres, et le point le plus haut ne tombe pas sur la position publiée. */
+  const SAME_FEATURE_M = 600;
   const known = fromOsm.concat(SPOTS);
   for (const b of fromBathy) {
-    const near = known.find(k => metres(b, k) < 400);
+    const near = known.find(k => metres(b, k) < SAME_FEATURE_M);
     if (near) {
       b.confirmedBy = near.n;
       /* Un relief prend le nom de ce qu'il recoupe : « sec près de la Langue »
@@ -1753,7 +1756,7 @@ try {
     }
   }
   for (const o of fromOsm) {
-    const near = fromBathy.find(b => metres(o, b) < 400);
+    const near = fromBathy.find(b => metres(o, b) < SAME_FEATURE_M);
     if (near) { o.confirmedBy = near.n; }
   }
 

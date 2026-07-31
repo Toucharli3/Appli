@@ -38,6 +38,17 @@ NMS_M = 700.0           # distance minimale entre deux repères retenus
 MAX_BANKS = 45
 MAX_DROPS = 25
 
+# Repères dont on sait qu'ils portent un relief. Ils ne servent qu'au contrôle
+# imprimé au déploiement : si l'analyse ne retombe pas dessus, elle est fausse.
+REFERENCES = [
+    ("La Langue des Moutons", 47.8100, -4.0300),
+    ("Île aux Moutons", 47.7969, -4.0328),
+    ("Basse Pérennès", 47.6856, -4.1061),
+    ("Chenal des Bluiniers", 47.7300, -4.0617),
+    ("Les Pourceaux", 47.7897, -4.0470),
+    ("Penfret", 47.7186, -3.9522),
+]
+
 
 def integral(a):
     """Image intégrale avec une ligne et une colonne de zéros en tête."""
@@ -186,9 +197,26 @@ def main():
     out = banks + drops
     print(f"// bathymétrie : {len(banks)} secs, {len(drops)} tombants "
           f"(grille {depth.shape[0]}x{depth.shape[1]})", file=sys.stderr)
-    for f in banks[:6]:
+    for f in banks[:8]:
         print(f"//   sec {f['la']:.4f} {f['lo']:.4f} — {f['d']} m, "
               f"remonte de {f['r']} m", file=sys.stderr)
+
+    # Contrôle : est-ce que la détection retombe sur les reliefs qu'on connaît ?
+    # C'est la seule façon de savoir si l'analyse voit ce qu'un pêcheur voit.
+    print("// contrôle sur des repères connus :", file=sys.stderr)
+    for name, rlat, rlon in REFERENCES:
+        near = min(
+            ((math.dist((f["la"] * 111320, f["lo"] * 74800),
+                        (rlat * 111320, rlon * 74800)), f) for f in banks),
+            default=(None, None), key=lambda p: p[0])
+        if near[1] is None:
+            print(f"//   {name:<26} aucun sec détecté", file=sys.stderr)
+        else:
+            d, f = near
+            rank = banks.index(f) + 1
+            verdict = "TROUVÉ" if d < 900 else "rien à proximité"
+            print(f"//   {name:<26} {verdict} — sec le plus proche à {d:.0f} m "
+                  f"(rang {rank}, remonte de {f['r']} m)", file=sys.stderr)
     print("window.__BATHY__ = " + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";")
     return 0
 
