@@ -6,6 +6,7 @@ on:
     paths:
       - 'FishingCoef/web/glenan.html'
       - 'FishingCoef/web/icon-*.png'
+      - 'FishingCoef/web/sw.js'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
@@ -80,6 +81,7 @@ jobs:
           [ -s seabed.js ] || echo 'window.__SEABED__ = [];' > seabed.js
           [ -s bathy.js ]  || echo 'window.__BATHY__ = [];'  > bathy.js
           cp FishingCoef/web/icon-*.png site/
+          cp FishingCoef/web/sw.js site/
           cat > site/manifest.webmanifest <<'JSON'
           {
             "name": "Coef de pêche — Fouesnant · Les Glénan",

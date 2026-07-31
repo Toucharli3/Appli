@@ -66,7 +66,11 @@ body {
 .wrap {
   max-width: 34rem;
   margin: 0 auto;
-  padding: 0 1.15rem 3rem;
+  /* En plein écran sur iPhone, la barre d'état et l'indicateur d'accueil
+     recouvrent la page : on leur réserve leur place. */
+  padding: 0 calc(1.15rem + env(safe-area-inset-right))
+           calc(3rem + env(safe-area-inset-bottom))
+           calc(1.15rem + env(safe-area-inset-left));
 }
 h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
@@ -79,8 +83,11 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
   backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
   border-bottom: 1px solid var(--line);
-  margin: 0 -1.15rem 1.25rem;
-  padding: .7rem 1.15rem .6rem;
+  margin: 0 calc(-1.15rem - env(safe-area-inset-right)) 1.25rem
+          calc(-1.15rem - env(safe-area-inset-left));
+  padding: calc(.7rem + env(safe-area-inset-top))
+           calc(1.15rem + env(safe-area-inset-right)) .6rem
+           calc(1.15rem + env(safe-area-inset-left));
   display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
 }
 .masthead-place { font-family: var(--f-display); font-size: 1.05rem; letter-spacing: .01em; }
@@ -312,7 +319,8 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
 .map-frame {
   /* 400 px de haut : les postes s'étalent sur 19 km du nord de la baie au sud
      de l'archipel, ce qui ne tient pas dans une carte plus courte au zoom 11. */
-  position: relative; height: 400px; margin: 0 -1rem;
+  position: relative; height: 400px;
+  margin: 0 calc(-1rem - env(safe-area-inset-right)) 0 calc(-1rem - env(safe-area-inset-left));
   overflow: hidden; background: var(--sunken);
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
@@ -2891,6 +2899,14 @@ render();
 animate();
 
 setInterval(() => { if (picked === 0) render(); }, 60000);
+
+/* Sans service worker, toucher l'icône hors couverture n'affiche rien : tout
+   le travail fait pour calculer hors ligne serait perdu au large. */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* non bloquant */ });
+  });
+}
 
 /* On repart d'abord de la dernière prévision gardée : au large, sans réseau,
    c'est elle qui fait tourner la page. Le rafraîchissement vient ensuite. */
