@@ -507,7 +507,7 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       </div>
 
       <div style="display:flex;gap:1.1rem;flex-wrap:wrap">
-        <button type="button" class="link-btn" id="map-all">Voir tous les postes</button>
+        <button type="button" class="link-btn" id="map-all">Tout afficher</button>
         <button type="button" class="link-btn" id="map-add">Ajouter mon spot ici</button>
       </div>
       <div id="add-form" hidden class="stack-s" style="background:var(--sunken);border-radius:4px;padding:.7rem .8rem">
@@ -571,16 +571,16 @@ h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance
       <div id="spot-detail"></div>
 
       <div>
-        <h3 class="eyebrow" style="margin-bottom:.4rem">Les mieux placés à cette heure</h3>
+        <h3 class="eyebrow" style="margin-bottom:.4rem">Postes — les mieux placés à cette heure</h3>
         <div id="spot-rank"></div>
       </div>
 
       <div id="explore-wrap" hidden>
-        <h3 class="eyebrow" style="margin-bottom:.25rem">À explorer</h3>
+        <h3 class="eyebrow" style="margin-bottom:.25rem">À explorer — jamais éprouvé</h3>
         <p class="note" style="margin:0 0 .4rem">
           Secs détectés dans la grille des profondeurs, épaves et roches relevées sur la carte
-          marine. Ce que deux sources signalent au même endroit passe devant. Jamais éprouvés :
-          à sonder avant d'y croire.
+          marine. Ce que deux sources signalent au même endroit passe devant. La carte n'affiche
+          que les repères recoupés, nommés ou au relief franc — « tout afficher » lève le filtre.
         </p>
         <div id="explore-rank"></div>
       </div>
@@ -1089,10 +1089,34 @@ const periodFactor = T => T < 6 ? 0.94 : T < 8 ? 0.98 : 1;
 
 const UNSAFE_WIND = 50, UNSAFE_WAVE = 2.5, UNSAFE_GUST = 65;
 
-function fishability(sea) {
+/**
+ * Agitation qui parvient au fond. Le mouvement orbital d'une houle décroît en
+ * exp(−2πd/L), avec L ≈ 1,56·T² en eau profonde : à 8 s de période, une épave
+ * par 45 m ne reçoit que 6 % de ce qu'un caillou par 4 m subit.
+ */
+function waveAtDepth(wave, period, depth) {
+  if (!depth || !isFinite(depth)) return wave;
+  const L = 1.56 * Math.max(3, period) ** 2;
+  return wave * Math.exp(-2 * PI * Math.max(0, depth) / L);
+}
+
+/**
+ * `depth` est facultatif. Fourni, il distingue deux effets que confondre
+ * serait faux : la **praticabilité** reste en surface, où se trouve le bateau
+ * quelle que soit la profondeur — le verrou de sécurité n'en est donc jamais
+ * adouci — tandis que la **perturbation** du poisson dépend de ce qui parvient
+ * réellement au fond.
+ */
+function fishability(sea, depth) {
   if (!sea) return null;
-  const w = windFactor(sea.wind), h = waveFactor(sea.wave);
+  const w = windFactor(sea.wind);
   const d = directionFactor(sea.dir), p = periodFactor(sea.period);
+
+  const hSurface = waveFactor(sea.wave);
+  const hBottom = depth
+    ? waveFactor(Math.max(0.25, waveAtDepth(sea.wave, sea.period, depth)))
+    : hSurface;
+  const h = depth ? 0.55 * hSurface + 0.45 * hBottom : hSurface;
 
   /* Ce sont les rafales qui décident d'une sortie, pas le vent moyen :
      25 km/h établi avec des pointes à 55 n'est pas la même mer. Un écart
@@ -1695,7 +1719,7 @@ function seabedAsSpot(f, i) {
     facing: meta.facing, shelter: meta.shelter,
     tide: meta.tide, boat: true, kind: meta.kind,
     depth: f.d !== null && f.d !== undefined ? Math.max(2, Math.round(f.d)) : meta.depth,
-    seabed: f.k, seabedIndex: i,
+    seabed: f.k, seabedIndex: i, named: !!f.n,
     d: `${meta.label} relevée sur la carte marine`
        + (f.d !== null && f.d !== undefined ? `, ${fr(f.d)} m de fond` : "")
        + ". Repère non éprouvé : à sonder avant d'y croire.",
@@ -1721,6 +1745,7 @@ function bathyAsSpot(f) {
     boat: true, kind: meta.kind,
     depth: Math.max(2, Math.round(f.d)),
     seabed: f.k, relief, slope: typeof f.s === "number" ? f.s : null,
+    named: false,   // un relief détecté n'a pas de nom propre
     d: f.k === "bank"
       ? `Remontée du fond détectée sur la grille EMODnet : ${fr(f.d)} m sur un fond`
         + ` alentour d'environ ${fr(f.d + (relief || 0))} m.`
@@ -1733,6 +1758,16 @@ const metres = (a, b) => {
   const dx = (a.lon - b.lon) * 111320 * Math.cos(a.lat * RAD);
   return Math.hypot(dx, dy);
 };
+
+/** Un repère mérite d'être affiché s'il est recoupé par une seconde source,
+ *  s'il porte un nom, ou si son relief est franc. Le reste est du bruit. */
+function notableSeabed(sp) {
+  if (sp.confirmedBy) return true;              // deux sources concordent
+  if (sp.named) return true;                    // porte un nom sur la carte marine
+  if (sp.seabed === "bank") return (sp.relief || 0) >= 10;   // relief franc
+  if (sp.seabed === "wreck") return true;       // une épave vaut toujours le détour
+  return false;                                 // roches et tombants anonymes
+}
 
 let seabed = [];
 try {
@@ -1810,23 +1845,26 @@ function tideMatch(spot, st) {
 
 function spotScore(spot, astro, sea, st, pf = 1) {
   const tm = tideMatch(spot, st);
+  /* Un relief marqué concentre davantage : de 4 m de remontée à 20 m, on passe
+     d'une bosse quelconque à un sec qui se voit sur le sondeur. */
+  const rf = spot.relief ? 0.92 + 0.08 * Math.min(1, (spot.relief - 4) / 16) : 1;
   const cap100 = v => Math.max(0, Math.min(100, Math.round(v)));
-  if (!sea) return { score: cap100(astro * tm * pf), tm, fish: null };
+  if (!sea) return { score: cap100(astro * tm * pf * rf), tm, fish: null };
 
   const local = spotSea(spot, sea);
-  const fish = fishability(local);
+  const fish = fishability(local, spot.depth);
   let factor = fish.factor, unsafe = fish.unsafe, crossing = false;
 
   /* Un poste accessible seulement en bateau ne vaut pas mieux que la
      traversée qui y mène : un mouillage abrité derrière une île reste hors
      d'atteinte quand le large est démonté. */
   if (spot.boat) {
-    const offshore = fishability(sea);
+    const offshore = fishability(sea);   // la traversée se fait en surface
     if (offshore.factor < factor) { factor = offshore.factor; crossing = true; }
     unsafe = unsafe || offshore.unsafe;
   }
 
-  return { score: cap100(astro * factor * tm * pf), tm, fish, local, factor, unsafe, crossing };
+  return { score: cap100(astro * factor * tm * pf * rf), tm, fish, local, factor, unsafe, crossing };
 }
 
 /* ═══ Programme ════════════════════════════════════════════════════════
@@ -2068,7 +2106,12 @@ function drawMap() {
   /* Relief du fond : couche séparée, sous les postes éprouvés. */
   for (const old of layer.querySelectorAll(".pin-sb")) old.remove();
   if (showSeabed) {
-    seabed.forEach((sp, i) => {
+    /* Deux cent dix repères pour une poignée de notes distinctes, c'est un
+       écran chargé qui n'aide pas à décider. On ne garde que ceux qui ont une
+       raison d'être crus ; « voir tous les postes » lève le filtre. */
+    const shown = showAllSpots ? seabed : seabed.filter(notableSeabed);
+    shown.forEach(sp => {
+      const i = seabed.indexOf(sp);
       const px = lonToX(sp.lon, z) - ox, py = latToY(sp.lat, z) - oy;
       if (px < 0 || px > W || py < 0 || py > H) return;
       const btn = document.createElement("button");
@@ -2518,7 +2561,7 @@ function bindMap() {
 
   el("map-all").addEventListener("click", () => {
     showAllSpots = !showAllSpots;
-    el("map-all").textContent = showAllSpots ? "Ne garder que les bons postes" : "Voir tous les postes";
+    el("map-all").textContent = showAllSpots ? "Ne garder que le meilleur" : "Tout afficher";
     drawMap();
   });
 }
